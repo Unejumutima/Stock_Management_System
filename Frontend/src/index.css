@@ -1,12 +1,5 @@
 @import "tailwindcss";
 
-@theme {
-  --color-zuba-teal: #003333;
-  --color-zuba-teal-deep: #001f1f;
-  --color-form-bg: #f3f4f6;
-  --color-input-bg: #e5e7eb;
-}
-
 @layer base {
   html {
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;

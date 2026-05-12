@@ -141,13 +141,13 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-dvh w-full flex-col bg-form-bg md:flex-row">
+    <div className="flex min-h-dvh w-full flex-col bg-gray-100 md:flex-row">
       {/* Branding column — hidden on small screens; layout is mobile-first */}
       <aside
-        className="relative hidden min-h-[420px] w-full overflow-hidden bg-zuba-teal md:flex md:min-h-dvh md:w-[45%] lg:w-[42%]"
+        className="relative hidden min-h-[420px] w-full overflow-hidden bg-[#003333] md:flex md:min-h-dvh md:w-[45%] lg:w-[42%]"
         aria-hidden
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-zuba-teal-deep/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#001f1f]/80 to-transparent" />
         {/* Layered diagonal planes */}
         <div className="absolute -left-1/4 top-0 h-[120%] w-[70%] skew-x-[-12deg] bg-[#004d4d]/40" />
         <div className="absolute -left-[10%] top-[8%] h-[110%] w-[55%] skew-x-[-12deg] bg-[#005858]/35" />
@@ -190,7 +190,7 @@ export default function Login() {
           <div className="space-y-6">
             <button
               type="button"
-              className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-200/80 bg-input-bg px-5 py-3.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-200/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+              className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-200/80 bg-gray-200 px-5 py-3.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-200/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
             >
               <GoogleIcon className="h-5 w-5 shrink-0" />
               Log In with Google
@@ -213,7 +213,7 @@ export default function Login() {
                   type="email"
                   autoComplete="email"
                   placeholder="Email"
-                  className="w-full rounded-full border border-transparent bg-input-bg py-3.5 pl-5 pr-12 text-sm text-slate-900 placeholder:text-slate-500 shadow-inner outline-none ring-slate-900/10 transition focus:border-slate-300 focus:bg-white focus:ring-2"
+                  className="w-full rounded-full border border-transparent bg-gray-200 py-3.5 pl-5 pr-12 text-sm text-slate-900 placeholder:text-slate-500 shadow-inner outline-none ring-slate-900/10 transition focus:border-slate-300 focus:bg-white focus:ring-2"
                 />
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
                   <MailIcon className="h-5 w-5" />
@@ -230,7 +230,7 @@ export default function Login() {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="Password"
-                  className="w-full rounded-full border border-transparent bg-input-bg py-3.5 pl-5 pr-12 text-sm text-slate-900 placeholder:text-slate-500 shadow-inner outline-none ring-slate-900/10 transition focus:border-slate-300 focus:bg-white focus:ring-2"
+                  className="w-full rounded-full border border-transparent bg-gray-200 py-3.5 pl-5 pr-12 text-sm text-slate-900 placeholder:text-slate-500 shadow-inner outline-none ring-slate-900/10 transition focus:border-slate-300 focus:bg-white focus:ring-2"
                 />
                 <button
                   type="button"
