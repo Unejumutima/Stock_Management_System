@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
+import loginBackgroundImg from '../assets/login-background.jpg'
 import logoImg from '../assets/logo.png'
-import zubaImg from '../assets/zuba.png'
+//import zubaImg from '../assets/zuba.png'
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -87,51 +88,7 @@ function EyeOffIcon({ className }: { className?: string }) {
   )
 }
 
-function AppPreviewCard() {
-  return (
-    <div
-      className="pointer-events-none absolute left-1/2 top-[58%] z-20 w-[min(92%,420px)] -translate-x-1/2 -translate-y-1/2 rotate-[-7deg] select-none rounded-2xl border border-white/10 bg-white p-3 shadow-[0_25px_60px_-12px_rgba(0,0,0,0.45)] md:top-[56%] md:w-[min(88%,380px)] md:-rotate-6"
-      aria-hidden
-    >
-      <div className="flex gap-3">
-        <div className="hidden w-14 shrink-0 flex-col gap-2 rounded-xl bg-slate-100 p-2 sm:flex">
-          <div className="h-2 w-full rounded bg-slate-300/80" />
-          <div className="h-2 w-3/4 rounded bg-slate-200" />
-          <div className="mt-2 h-6 w-full rounded-lg bg-orange-200/70" />
-          <div className="h-6 w-full rounded-lg bg-slate-200" />
-        </div>
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex gap-1.5">
-            {['Sports', 'Food', 'Fashion'].map((label) => (
-              <span
-                key={label}
-                className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-medium text-slate-600"
-              >
-                {label}
-              </span>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {['Rwanda Jersey', 'Coffee', 'Sneakers'].map((title, i) => (
-              <div
-                key={title}
-                className={`overflow-hidden rounded-xl border border-slate-100 bg-slate-50 ${i === 2 ? 'hidden sm:block' : ''}`}
-              >
-                <div
-                  className={`h-14 bg-gradient-to-br ${i === 0 ? 'from-orange-200 to-amber-100' : i === 1 ? 'from-emerald-100 to-teal-50' : 'from-violet-100 to-fuchsia-50'}`}
-                />
-                <div className="p-2">
-                  <p className="truncate text-[11px] font-semibold text-slate-800">{title}</p>
-                  <p className="text-[9px] text-slate-500">In stock</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
@@ -142,34 +99,23 @@ export default function Login() {
 
   return (
     <div className="flex min-h-dvh w-full flex-col bg-gray-100 md:flex-row">
-      {/* Branding column — hidden on small screens; layout is mobile-first */}
       <aside
-        className="relative hidden min-h-[420px] w-full overflow-hidden bg-[#003333] md:flex md:min-h-dvh md:w-[45%] lg:w-[42%]"
+        className="relative hidden min-h-[420px] w-full overflow-hidden md:flex md:min-h-dvh md:w-[45%] lg:w-[42%]"
         aria-hidden
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-[#001f1f]/80 to-transparent" />
-        {/* Layered diagonal planes */}
-        <div className="absolute -left-1/4 top-0 h-[120%] w-[70%] skew-x-[-12deg] bg-[#004d4d]/40" />
-        <div className="absolute -left-[10%] top-[8%] h-[110%] w-[55%] skew-x-[-12deg] bg-[#005858]/35" />
-        <div className="absolute left-[5%] top-[18%] h-[95%] w-[48%] skew-x-[-12deg] bg-[#006666]/30" />
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${loginBackgroundImg})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/45 via-black/20 to-transparent" />
 
-        <div className="relative z-10 flex h-full min-h-dvh flex-col items-center justify-center px-8 pb-32 pt-16">
-          <img
-            src={zubaImg}
-            alt="Zuba"
-            className="relative z-10 w-[min(85%,320px)] max-w-sm object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
-            width={320}
-            height={120}
-          />
-        </div>
-
-        <AppPreviewCard />
+        
       </aside>
 
-      {/* Form column — full width on mobile */}
+     
       <main className="flex w-full flex-1 flex-col justify-center px-5 py-10 sm:px-8 md:w-[55%] md:px-10 md:py-12 lg:w-[58%] lg:px-14">
         <div className="mx-auto w-full max-w-md">
-          {/* Mobile-only mark using logo asset */}
+          
           <div className="mb-8 flex justify-center md:hidden">
             <img
               src={logoImg}
