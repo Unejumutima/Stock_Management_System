@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import loginBackgroundImg from '../assets/login-background.jpg'
 import logoImg from '../assets/logo.png'
-//import zubaImg from '../assets/zuba.png'
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
