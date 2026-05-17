@@ -15,6 +15,23 @@ export const EXPENSE_CATEGORIES = [
   'Other',
 ] as const
 
+export const EXPENSE_FILTER_CATEGORIES = ['All categories', ...EXPENSE_CATEGORIES] as const
+
+export const CUSTOM_CATEGORY_VALUE = '__custom__'
+
+export const EXPENSE_CATEGORY_CLASS: Record<string, string> = {
+  'Logistics & freight': 'bg-blue-50 text-blue-800 ring-blue-600/15',
+  Utilities: 'bg-amber-50 text-amber-900 ring-amber-600/15',
+  Payroll: 'bg-violet-50 text-violet-800 ring-violet-600/15',
+  Marketing: 'bg-rose-50 text-rose-800 ring-rose-600/15',
+  'Warehouse & rent': 'bg-slate-100 text-slate-800 ring-slate-500/15',
+  Other: 'bg-slate-50 text-slate-600 ring-slate-400/20',
+}
+
+export function expenseCategoryClass(category: string): string {
+  return EXPENSE_CATEGORY_CLASS[category] ?? 'bg-slate-50 text-slate-700 ring-slate-400/20'
+}
+
 export const INITIAL_EXPENSES: Expense[] = [
   { id: 'exp-1', category: 'Logistics & freight', description: 'Kigali hub inbound freight', amount: 4200, date: '2026-05-03' },
   { id: 'exp-2', category: 'Utilities', description: 'Cold storage electricity — May', amount: 1850, date: '2026-05-05' },

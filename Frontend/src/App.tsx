@@ -5,6 +5,7 @@ import Products from './components/Products'
 import Purchases from './components/Purchases'
 import Sales from './components/Sales'
 import Reports from './components/Reports'
+import Expenses from './components/Expenses'
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/purchases" element={<Purchases />} />
         <Route path="/sales" element={<Sales />} />
         <Route path="/reports" element={<Reports />} />
+        <Route path="/expenses" element={<Expenses />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
