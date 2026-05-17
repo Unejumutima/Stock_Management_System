@@ -4,6 +4,7 @@ import Inventory from './components/Inventory'
 import Products from './components/Products'
 import Purchases from './components/Purchases'
 import Sales from './components/Sales'
+import Reports from './components/Reports'
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/products" element={<Products />} />
         <Route path="/purchases" element={<Purchases />} />
         <Route path="/sales" element={<Sales />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
