@@ -67,3 +67,17 @@ CREATE TABLE IF NOT EXISTS expenses (
 
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses (expense_date);
 CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses (category);
+
+-- Refresh Tokens (JWT rotation and revocation)
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  token VARCHAR(500) NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  is_used BOOLEAN NOT NULL DEFAULT FALSE,
+  is_revoked BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens (token);
+

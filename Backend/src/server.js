@@ -6,6 +6,11 @@ import { env } from './config/env.js'
 import { testConnection } from './config/db.js'
 import apiRoutes from './routes/index.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
+import dotenv from 'dotenv';
+dotenv.config();
+
+console.log("ENV DB_NAME =", process.env.DB_NAME);
+console.log("ENV FILE CHECK DONE");
 
 const app = express()
 

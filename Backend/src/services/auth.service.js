@@ -1,23 +1,40 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import crypto from 'crypto'
 import { env } from '../config/env.js'
 import { ApiError } from '../utils/ApiError.js'
 import * as authModel from '../models/auth.model.js'
+import * as refreshTokenModel from '../models/refreshToken.model.js'
 
 /**
  * Auth service — business logic: verify credentials, issue JWT.
  */
 
-export function signToken(user) {
+export function signAccessToken(user) {
   return jwt.sign(
     {
       id: user.id,
       email: user.email,
       role: user.role,
       fullName: user.full_name || user.fullName,
+      jti: crypto.randomUUID(),
     },
     env.jwt.secret,
-    { expiresIn: env.jwt.expiresIn },
+    { expiresIn: env.jwt.accessExpiresIn }
+  )
+}
+
+export function signRefreshToken(user) {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      fullName: user.full_name || user.fullName,
+      jti: crypto.randomUUID(),
+    },
+    env.jwt.secret,
+    { expiresIn: env.jwt.refreshExpiresIn }
   )
 }
 
@@ -32,9 +49,18 @@ export async function login(email, password) {
     throw ApiError.unauthorized('Invalid email or password')
   }
 
-  const token = signToken(user)
+  const accessToken = signAccessToken(user)
+  const refreshToken = signRefreshToken(user)
+
+  // Save the refresh token in the database
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + 7)
+
+  await refreshTokenModel.createRefreshToken(user.id, refreshToken, expiresAt)
+
   return {
-    token,
+    accessToken,
+    refreshToken,
     user: {
       id: user.id,
       email: user.email,
@@ -52,10 +78,18 @@ export async function register({ email, password, fullName }) {
 
   const passwordHash = await bcrypt.hash(password, 10)
   const user = await authModel.createUser({ email, passwordHash, fullName })
-  const token = signToken(user)
+
+  const accessToken = signAccessToken(user)
+  const refreshToken = signRefreshToken(user)
+
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + 7)
+
+  await refreshTokenModel.createRefreshToken(user.id, refreshToken, expiresAt)
 
   return {
-    token,
+    accessToken,
+    refreshToken,
     user: {
       id: user.id,
       email: user.email,
@@ -64,6 +98,69 @@ export async function register({ email, password, fullName }) {
     },
   }
 }
+
+export async function refreshTokens(refreshTokenVal) {
+  let decoded
+  try {
+    decoded = jwt.verify(refreshTokenVal, env.jwt.secret)
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      throw ApiError.unauthorized('Refresh token expired')
+    }
+    throw ApiError.unauthorized('Invalid refresh token')
+  }
+
+  const tokenRecord = await refreshTokenModel.findRefreshToken(refreshTokenVal)
+  if (!tokenRecord) {
+    throw ApiError.unauthorized('Invalid refresh token')
+  }
+
+  if (tokenRecord.is_revoked) {
+    throw ApiError.unauthorized('Refresh token is revoked')
+  }
+
+  if (tokenRecord.is_used) {
+    // Replay attack! Revoke all tokens for this user for security
+    await refreshTokenModel.revokeAllUserTokens(tokenRecord.user_id)
+    throw ApiError.unauthorized('Refresh token has already been used. Access revoked.')
+  }
+
+  if (new Date(tokenRecord.expires_at) < new Date()) {
+    throw ApiError.unauthorized('Refresh token expired')
+  }
+
+  // Token is valid! Mark it as used.
+  await refreshTokenModel.markAsUsed(refreshTokenVal)
+
+  // Generate new tokens (rotation)
+  const user = {
+    id: decoded.id,
+    email: decoded.email,
+    role: decoded.role,
+    fullName: decoded.fullName,
+  }
+
+  const newAccessToken = signAccessToken(user)
+  const newRefreshToken = signRefreshToken(user)
+
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + 7)
+
+  await refreshTokenModel.createRefreshToken(user.id, newRefreshToken, expiresAt)
+
+  return {
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
+  }
+}
+
+export async function logout(refreshTokenVal) {
+  const tokenRecord = await refreshTokenModel.findRefreshToken(refreshTokenVal)
+  if (tokenRecord) {
+    await refreshTokenModel.revokeToken(refreshTokenVal)
+  }
+}
+
 
 export async function getProfile(userId) {
   const user = await authModel.findUserById(userId)

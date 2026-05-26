@@ -10,3 +10,12 @@ export const registerValidation = [
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
   body('fullName').trim().notEmpty().withMessage('Full name is required'),
 ]
+
+export const refreshValidation = [
+  body('refreshToken').trim().notEmpty().withMessage('Refresh token is required'),
+]
+
+export const logoutValidation = [
+  body('refreshToken').trim().notEmpty().withMessage('Refresh token is required'),
+]
+

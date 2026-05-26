@@ -1,5 +1,5 @@
 -- Sample seed data (password for demo user: Password123!)
--- bcrypt hash generated for 'Password123!'
+-- bcrypt hash generated for 'Password123!'nod
 
 INSERT INTO users (email, password_hash, full_name, role)
 VALUES (
