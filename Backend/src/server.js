@@ -2,6 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
+import session from 'express-session'
+import passport from './config/passport.js'
 import { env } from './config/env.js'
 import { testConnection } from './config/db.js'
 import apiRoutes from './routes/index.js'
@@ -28,6 +30,21 @@ app.use(
 
 app.use(express.json({ limit: '1mb' }))
 app.use(express.urlencoded({ extended: true }))
+
+// Session configuration for Passport
+app.use(session({
+  secret: env.jwt.secret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: env.nodeEnv === 'production',
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  }
+}))
+
+// Initialize Passport
+app.use(passport.initialize())
+app.use(passport.session())
 
 // Health check (no auth — for deployment probes)
 app.get('/health', (req, res) => {

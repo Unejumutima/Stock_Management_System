@@ -10,7 +10,6 @@ VALUES (
 )
 ON CONFLICT (email) DO NOTHING;
 
--- Note: Replace password_hash after running scripts/seedAdmin.js which hashes the real password.
 
 INSERT INTO products (name, sku, category, purchase_price, selling_price) VALUES
   ('West African Cocoa — Grade A', 'ZHS-COC-104', 'Commodities', 18.40, 24.90),

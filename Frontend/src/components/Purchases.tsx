@@ -14,6 +14,7 @@ import { fetchProducts, type Product } from '../services/product.service'
 import { createPurchase, deletePurchase, fetchPurchases, type Purchase } from '../services/purchase.service'
 import { AppLayout } from './layout/AppLayout'
 import { KpiCard } from './ui/KpiCard'
+import { useAuth } from '../context/AuthContext'
 
 type PurchaseForm = {
   productId: string
@@ -30,6 +31,8 @@ const emptyForm = (products: Product[]): PurchaseForm => ({
 })
 
 export default function Purchases() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -142,10 +145,12 @@ export default function Purchases() {
             Manage and track all stock purchase transactions that increase inventory levels.
           </p>
         </div>
-        <button type="button" className={btnPrimaryClass} onClick={openAddModal}>
-          <PlusIcon className="size-4" />
-          Add Purchase
-        </button>
+        {isAdmin ? (
+          <button type="button" className={btnPrimaryClass} onClick={openAddModal}>
+            <PlusIcon className="size-4" />
+            Add Purchase
+          </button>
+        ) : null}
       </section>
 
       {apiError ? (
@@ -200,14 +205,16 @@ export default function Purchases() {
               {filtered.length} {filtered.length === 1 ? 'transaction' : 'transactions'} shown
             </p>
           </div>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:hidden"
-            onClick={openAddModal}
-          >
-            <PlusIcon className="size-4" />
-            Add Purchase
-          </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:hidden"
+              onClick={openAddModal}
+            >
+              <PlusIcon className="size-4" />
+              Add Purchase
+            </button>
+          ) : null}
         </div>
 
         <article className="overflow-hidden rounded-xl bg-white shadow-[0_8px_30px_-8px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/60">
@@ -241,11 +248,13 @@ export default function Purchases() {
                       <td className="px-4 py-4 tabular-nums font-medium text-[#0B2735]">{formatCurrency(row.totalCost)}</td>
                       <td className="px-4 py-4 text-slate-600">{formatDisplayDate(row.purchaseDate)}</td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center justify-end">
-                          <ActionButton label={`Delete purchase for ${row.productName}`} variant="danger" onClick={() => handleDelete(row.id)}>
-                            <TrashIcon className="size-4" />
-                          </ActionButton>
-                        </div>
+                        {isAdmin ? (
+                          <div className="flex items-center justify-end">
+                            <ActionButton label={`Delete purchase for ${row.productName}`} variant="danger" onClick={() => handleDelete(row.id)}>
+                              <TrashIcon className="size-4" />
+                            </ActionButton>
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

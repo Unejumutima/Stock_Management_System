@@ -7,9 +7,11 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email VARCHAR(255) NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255),
   full_name VARCHAR(120) NOT NULL,
   role VARCHAR(50) NOT NULL DEFAULT 'admin',
+  google_id VARCHAR(255) UNIQUE,
+  is_approved BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -71,7 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses (category);
 -- Refresh Tokens (JWT rotation and revocation)
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   token VARCHAR(500) NOT NULL UNIQUE,
   expires_at TIMESTAMPTZ NOT NULL,
   is_used BOOLEAN NOT NULL DEFAULT FALSE,

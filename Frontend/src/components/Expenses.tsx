@@ -19,6 +19,7 @@ import {
 import { createExpense, deleteExpense, fetchExpenses, type Expense } from '../services/expense.service'
 import { AppLayout } from './layout/AppLayout'
 import { KpiCard } from './ui/KpiCard'
+import { useAuth } from '../context/AuthContext'
 
 type ExpenseForm = {
   category: string
@@ -60,6 +61,8 @@ function computeStats(expenses: Expense[]) {
 }
 
 export default function Expenses() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
@@ -153,10 +156,12 @@ export default function Expenses() {
             Track and manage operational costs that affect net profit across Zuba House.
           </p>
         </div>
-        <button type="button" className={btnPrimaryClass} onClick={openAddModal}>
-          <PlusIcon className="size-4" />
-          Add Expense
-        </button>
+        {isAdmin ? (
+          <button type="button" className={btnPrimaryClass} onClick={openAddModal}>
+            <PlusIcon className="size-4" />
+            Add Expense
+          </button>
+        ) : null}
       </section>
 
       {apiError ? (
@@ -205,14 +210,16 @@ export default function Expenses() {
               {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'} shown
             </p>
           </div>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:hidden"
-            onClick={openAddModal}
-          >
-            <PlusIcon className="size-4" />
-            Add Expense
-          </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:hidden"
+              onClick={openAddModal}
+            >
+              <PlusIcon className="size-4" />
+              Add Expense
+            </button>
+          ) : null}
         </div>
 
         <article className="overflow-hidden rounded-xl bg-white shadow-[0_8px_30px_-8px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/60">
@@ -244,11 +251,13 @@ export default function Expenses() {
                       <td className="px-4 py-4 text-slate-600">{formatDisplayDate(row.expenseDate)}</td>
                       <td className="px-4 py-4 text-slate-600">{row.description || row.notes || '—'}</td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center justify-end">
-                          <ActionButton label={`Delete expense: ${row.category}`} variant="danger" onClick={() => handleDelete(row.id)}>
-                            <TrashIcon className="size-4" />
-                          </ActionButton>
-                        </div>
+                        {isAdmin ? (
+                          <div className="flex items-center justify-end">
+                            <ActionButton label={`Delete expense: ${row.category}`} variant="danger" onClick={() => handleDelete(row.id)}>
+                              <TrashIcon className="size-4" />
+                            </ActionButton>
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

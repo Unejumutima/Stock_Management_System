@@ -24,6 +24,7 @@ import {
   type Product,
 } from '../services/product.service'
 import { AppLayout } from './layout/AppLayout'
+import { useAuth } from '../context/AuthContext'
 
 type ProductForm = {
   name: string
@@ -42,6 +43,8 @@ const emptyForm: ProductForm = {
 }
 
 export default function Products() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
@@ -166,10 +169,12 @@ export default function Products() {
             Manage SKUs, categories, purchase and selling prices, and on-hand stock for Zuba House.
           </p>
         </div>
-        <button type="button" className={btnPrimaryClass} onClick={openAddModal}>
-          <PlusIcon className="size-4" />
-          Add Product
-        </button>
+        {isAdmin ? (
+          <button type="button" className={btnPrimaryClass} onClick={openAddModal}>
+            <PlusIcon className="size-4" />
+            Add Product
+          </button>
+        ) : null}
       </section>
 
       {apiError ? (
@@ -215,14 +220,16 @@ export default function Products() {
             <p className="mt-0.5 text-sm text-white/60">
               {products.length} {products.length === 1 ? 'product' : 'products'} in your store
             </p>          </div>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:hidden"
-            onClick={openAddModal}
-          >
-            <PlusIcon className="size-4" />
-            Add Product
-          </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:hidden"
+              onClick={openAddModal}
+            >
+              <PlusIcon className="size-4" />
+              Add Product
+            </button>
+          ) : null}
         </div>
 
         <article className="overflow-hidden rounded-xl bg-white shadow-[0_8px_30px_-8px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/60">
@@ -277,14 +284,16 @@ export default function Products() {
                         <StockBadge stock={row.stock} />
                       </td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center justify-end gap-1">
-                          <ActionButton label={`Edit ${row.name}`} onClick={() => openEditModal(row)}>
-                            <PencilIcon className="size-4" />
-                          </ActionButton>
-                          <ActionButton label={`Delete ${row.name}`} variant="danger" onClick={() => handleDelete(row.id)}>
-                            <TrashIcon className="size-4" />
-                          </ActionButton>
-                        </div>
+                        {isAdmin ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <ActionButton label={`Edit ${row.name}`} onClick={() => openEditModal(row)}>
+                              <PencilIcon className="size-4" />
+                            </ActionButton>
+                            <ActionButton label={`Delete ${row.name}`} variant="danger" onClick={() => handleDelete(row.id)}>
+                              <TrashIcon className="size-4" />
+                            </ActionButton>
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

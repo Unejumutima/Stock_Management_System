@@ -2,15 +2,17 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import api, { setAccessToken } from '../utils/api'
 
 export interface User {
-  id: number
+  id: string
   email: string
   fullName: string
   role: string
+  isApproved?: boolean
 }
 
 interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<void>
+  loginWithTokens: (accessToken: string, refreshToken: string) => Promise<void>
   logout: () => Promise<void>
   loading: boolean
   error: string | null
@@ -24,14 +26,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Attempt to recover session on mount
     async function restoreSession() {
       const storedUser = localStorage.getItem('user')
       const storedRefreshToken = localStorage.getItem('refreshToken')
 
       if (storedUser && storedRefreshToken) {
         try {
-          // Perform a silent refresh to get a valid access token
           const { data } = await api.post('/auth/refresh', { refreshToken: storedRefreshToken })
           setAccessToken(data.data.accessToken)
           if (data.data.refreshToken) {
@@ -50,15 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     restoreSession()
 
-    // Listen to global logout events triggered by interceptor failures
-    const handleLogoutEvent = () => {
-      setUser(null)
-    }
+    const handleLogoutEvent = () => setUser(null)
     window.addEventListener('logout', handleLogoutEvent)
-
-    return () => {
-      window.removeEventListener('logout', handleLogoutEvent)
-    }
+    return () => window.removeEventListener('logout', handleLogoutEvent)
   }, [])
 
   const login = async (email: string, password: string) => {
@@ -78,6 +72,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  /**
+   * Called after Google OAuth redirect — tokens arrive as URL params.
+   * Sets the access token in memory, stores the refresh token, then
+   * fetches the full user profile from /auth/me to populate context.
+   */
+  const loginWithTokens = async (accessToken: string, refreshToken: string) => {
+    setAccessToken(accessToken)
+    localStorage.setItem('refreshToken', refreshToken)
+
+    // Fetch the real user object so context is populated immediately
+    const { data } = await api.get('/auth/me')
+    const userData = data.data.user
+    localStorage.setItem('user', JSON.stringify(userData))
+    setUser(userData)
+  }
+
   const logout = async () => {
     const storedRefreshToken = localStorage.getItem('refreshToken')
     try {
@@ -95,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, error }}>
+    <AuthContext.Provider value={{ user, login, loginWithTokens, logout, loading, error }}>
       {children}
     </AuthContext.Provider>
   )

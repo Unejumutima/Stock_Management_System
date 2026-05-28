@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import logoImg from '../../assets/logo.png'
-import { LogOutIcon } from '../../constants/icons'
+import { LogOutIcon, NavIconUsers } from '../../constants/icons'
 import { NAV_ITEMS } from '../../constants/navigation'
 import { colors } from '../../constants/theme'
 import { useAuth } from '../../context/AuthContext'
@@ -11,13 +11,16 @@ type SidebarProps = {
 }
 
 export function Sidebar({ open, onClose }: SidebarProps) {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const navigate = useNavigate()
 
   async function handleLogout() {
     await logout()
     navigate('/login', { replace: true })
   }
+
+  const isAdmin = user?.role === 'admin'
+
   return (
     <aside
       id="sidebar-nav"
@@ -59,6 +62,33 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             )}
           </NavLink>
         ))}
+
+        {/* Admin-only: User Management */}
+        {isAdmin ? (
+          <>
+            <div className="mx-3 my-3 border-t border-white/[0.08]" />
+            <NavLink
+              to="/users"
+              onClick={onClose}
+              className={({ isActive }) =>
+                `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+                  isActive
+                    ? 'bg-white/[0.14] text-white shadow-[inset_3px_0_0_0_rgba(255,255,255,0.9)] ring-1 ring-white/[0.06]'
+                    : 'text-white/65 hover:bg-white/[0.07] hover:text-white'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <NavIconUsers
+                    className={`size-[1.125rem] shrink-0 ${isActive ? 'text-white' : 'text-white/55 group-hover:text-white/90'}`}
+                  />
+                  User Management
+                </>
+              )}
+            </NavLink>
+          </>
+        ) : null}
       </nav>
 
       <div className="mt-auto shrink-0 space-y-3 border-t border-white/[0.08] p-4 pb-5">

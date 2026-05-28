@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, type FormEvent } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import loginBackgroundImg from '../assets/login-background.jpg'
 import logoImg from '../assets/logo.png'
 import { useAuth } from '../context/AuthContext'
@@ -98,8 +98,40 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const { login } = useAuth()
+  const { login, loginWithTokens } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  useEffect(() => {
+    const accessToken = searchParams.get('accessToken')
+    const refreshToken = searchParams.get('refreshToken')
+    const error = searchParams.get('error')
+
+    if (error) {
+      setErrorMsg(
+        error === 'not_approved'
+          ? 'Your account has not been approved by an administrator.'
+          : error === 'oauth_failed'
+            ? 'Google login failed. Please try again.'
+            : 'Login failed. Please try again.',
+      )
+      // Clean the URL
+      navigate('/login', { replace: true })
+    } else if (accessToken && refreshToken) {
+      // Google OAuth callback — set tokens and fetch user profile
+      setSubmitting(true)
+      loginWithTokens(accessToken, refreshToken)
+        .then(() => navigate('/', { replace: true }))
+        .catch(() => {
+          setErrorMsg('Google login failed. Please try again.')
+          setSubmitting(false)
+        })
+    }
+  }, [searchParams])
+
+  const handleGoogleLogin = () => {
+    window.location.href = 'http://localhost:5000/api/auth/google'
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -154,6 +186,7 @@ export default function Login() {
           <div className="space-y-6">
             <button
               type="button"
+              onClick={handleGoogleLogin}
               className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-200/80 bg-gray-200 px-5 py-3.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-200/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
             >
               <GoogleIcon className="h-5 w-5 shrink-0" />

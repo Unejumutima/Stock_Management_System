@@ -27,3 +27,13 @@ export function authenticate(req, res, next) {
     return next(ApiError.unauthorized('Invalid or expired token'))
   }
 }
+
+/**
+ * Restricts routes to admin users only
+ */
+export function requireAdmin(req, res, next) {
+  if (req.user.role !== 'admin') {
+    return next(ApiError.forbidden('Admin access required'))
+  }
+  next()
+}

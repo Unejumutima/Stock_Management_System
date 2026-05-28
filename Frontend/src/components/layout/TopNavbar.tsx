@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   BellIcon,
   CogIcon,
@@ -18,6 +19,17 @@ type TopNavbarProps = {
 }
 
 const SETTINGS_ITEMS = [
+  {
+    label: 'User Management',
+    description: 'Manage system users and permissions',
+    icon: (
+      <svg className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24" aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+      </svg>
+    ),
+    adminOnly: true,
+    path: '/users',
+  },
   {
     label: 'Account settings',
     description: 'Manage your profile and password',
@@ -65,6 +77,7 @@ export function TopNavbar({
   menuOpen,
 }: TopNavbarProps) {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
 
@@ -167,13 +180,18 @@ export function TopNavbar({
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Settings</p>
                   </div>
                   <ul className="py-1.5">
-                    {SETTINGS_ITEMS.map((item) => (
+                    {SETTINGS_ITEMS.filter((item) => !item.adminOnly || user?.role === 'admin').map((item) => (
                       <li key={item.label}>
                         <button
                           type="button"
                           role="menuitem"
                           className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
-                          onClick={() => setSettingsOpen(false)}
+                          onClick={() => {
+                            setSettingsOpen(false)
+                            if (item.path) {
+                              navigate(item.path)
+                            }
+                          }}
                         >
                           <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
                             {item.icon}

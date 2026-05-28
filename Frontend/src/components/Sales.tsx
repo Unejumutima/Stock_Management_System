@@ -14,6 +14,7 @@ import { fetchProducts, type Product } from '../services/product.service'
 import { createSale, deleteSale, fetchSales, type Sale } from '../services/sale.service'
 import { AppLayout } from './layout/AppLayout'
 import { KpiCard } from './ui/KpiCard'
+import { useAuth } from '../context/AuthContext'
 
 type SaleForm = {
   productId: string
@@ -28,6 +29,8 @@ const emptyForm = (products: Product[]): SaleForm => ({
 })
 
 export default function Sales() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [sales, setSales] = useState<Sale[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -130,10 +133,12 @@ export default function Sales() {
             Track product sales, revenue, and stock reductions across your store.
           </p>
         </div>
-        <button type="button" className={btnPrimaryClass} onClick={openAddModal}>
-          <PlusIcon className="size-4" />
-          Add Sale
-        </button>
+        {isAdmin ? (
+          <button type="button" className={btnPrimaryClass} onClick={openAddModal}>
+            <PlusIcon className="size-4" />
+            Add Sale
+          </button>
+        ) : null}
       </section>
 
       {apiError ? (
@@ -188,14 +193,16 @@ export default function Sales() {
               {filtered.length} {filtered.length === 1 ? 'transaction' : 'transactions'} shown
             </p>
           </div>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:hidden"
-            onClick={openAddModal}
-          >
-            <PlusIcon className="size-4" />
-            Add Sale
-          </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:hidden"
+              onClick={openAddModal}
+            >
+              <PlusIcon className="size-4" />
+              Add Sale
+            </button>
+          ) : null}
         </div>
 
         <article className="overflow-hidden rounded-xl bg-white shadow-[0_8px_30px_-8px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/60">
@@ -229,11 +236,13 @@ export default function Sales() {
                       <td className="px-4 py-4 tabular-nums font-semibold text-emerald-700">{formatCurrency(row.totalRevenue)}</td>
                       <td className="px-4 py-4 text-slate-600">{formatDisplayDate(row.saleDate)}</td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center justify-end">
-                          <ActionButton label={`Delete sale for ${row.productName}`} variant="danger" onClick={() => handleDelete(row.id)}>
-                            <TrashIcon className="size-4" />
-                          </ActionButton>
-                        </div>
+                        {isAdmin ? (
+                          <div className="flex items-center justify-end">
+                            <ActionButton label={`Delete sale for ${row.productName}`} variant="danger" onClick={() => handleDelete(row.id)}>
+                              <TrashIcon className="size-4" />
+                            </ActionButton>
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

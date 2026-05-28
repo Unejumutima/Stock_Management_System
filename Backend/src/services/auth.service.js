@@ -49,6 +49,11 @@ export async function login(email, password) {
     throw ApiError.unauthorized('Invalid email or password')
   }
 
+  // Block unapproved users
+  if (!user.is_approved) {
+    throw ApiError.forbidden('Your account has not been approved by an administrator.')
+  }
+
   const accessToken = signAccessToken(user)
   const refreshToken = signRefreshToken(user)
 
