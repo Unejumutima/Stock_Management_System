@@ -5,7 +5,7 @@ import { STOCK_SUBQUERY, TOTAL_PURCHASED_SUBQUERY, TOTAL_SOLD_SUBQUERY } from '.
 const PRODUCT_SELECT = `
   p.id, p.name, p.sku, p.category,
   p.purchase_price, p.selling_price,
-  p.created_at, p.updated_at,
+  p.created_at,
   (${STOCK_SUBQUERY}) AS stock,
   (${TOTAL_PURCHASED_SUBQUERY}) AS total_purchased,
   (${TOTAL_SOLD_SUBQUERY}) AS total_sold
@@ -47,7 +47,7 @@ export async function create({ name, sku, category, purchasePrice, sellingPrice 
   const { rows } = await pool.query(
     `INSERT INTO products (name, sku, category, purchase_price, selling_price)
      VALUES ($1, $2, $3, $4, $5)
-     RETURNING id, name, sku, category, purchase_price, selling_price, created_at, updated_at`,
+     RETURNING id, name, sku, category, purchase_price, selling_price, created_at`,
     [name, sku.toUpperCase(), category, purchasePrice, sellingPrice],
   )
   return findById(rows[0].id)

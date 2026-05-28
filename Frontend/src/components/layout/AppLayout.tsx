@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from 'react'
-import { colors } from '../../constants/theme'
 import { Sidebar } from './Sidebar'
 import { TopNavbar } from './TopNavbar'
 
@@ -14,7 +13,7 @@ export function AppLayout({ title, subtitle, searchPlaceholder, children }: AppL
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
-    <div className="min-h-screen text-slate-800 antialiased" style={{ backgroundColor: colors.pageBg }}>
+    <div className="min-h-screen bg-[#F5F7FA] text-slate-800 antialiased">
       {mobileNavOpen ? (
         <button
           type="button"

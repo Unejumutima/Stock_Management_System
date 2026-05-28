@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { TrendDown, TrendUp } from '../../constants/icons'
-import { cardClass, cardHoverClass } from '../../constants/theme'
 import { IconBox } from './IconBox'
 
 type KpiCardProps = {
@@ -16,7 +15,7 @@ type KpiCardProps = {
 export function KpiCard({ title, value, sub, icon, trend, trendUp = true, compact }: KpiCardProps) {
   return (
     <article
-      className={`group flex flex-col ${compact ? 'min-h-[132px] p-4' : 'min-h-[152px] p-5'} ${cardClass} ${cardHoverClass}`}
+      className={`group flex flex-col ${compact ? 'min-h-[132px] p-4' : 'min-h-[152px] p-5'} rounded-2xl border border-slate-200/50 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.035),0_14px_36px_-12px_rgba(15,23,42,0.09)] ring-1 ring-slate-100/80 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-8px_rgba(15,23,42,0.12)]`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
