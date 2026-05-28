@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import loginBackgroundImg from '../assets/login-background.jpg'
 import logoImg from '../assets/logo.png'
+import { useAuth } from '../context/AuthContext'
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -91,9 +93,26 @@ function EyeOffIcon({ className }: { className?: string }) {
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  function handleSubmit(e: FormEvent) {
+  const { login } = useAuth()
+  const navigate = useNavigate()
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    setErrorMsg(null)
+    setSubmitting(true)
+    try {
+      await login(email, password)
+      navigate('/', { replace: true })
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Login failed. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -158,6 +177,9 @@ export default function Login() {
                   type="email"
                   autoComplete="email"
                   placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                   className="w-full rounded-full border border-transparent bg-gray-200 py-3.5 pl-5 pr-12 text-sm text-slate-900 placeholder:text-slate-500 shadow-inner outline-none ring-slate-900/10 transition focus:border-slate-300 focus:bg-white focus:ring-2"
                 />
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -175,6 +197,9 @@ export default function Login() {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
                   className="w-full rounded-full border border-transparent bg-gray-200 py-3.5 pl-5 pr-12 text-sm text-slate-900 placeholder:text-slate-500 shadow-inner outline-none ring-slate-900/10 transition focus:border-slate-300 focus:bg-white focus:ring-2"
                 />
                 <button
@@ -200,11 +225,18 @@ export default function Login() {
                 </a>
               </div>
 
+              {errorMsg ? (
+                <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 ring-1 ring-rose-200">
+                  {errorMsg}
+                </p>
+              ) : null}
+
               <button
                 type="submit"
-                className="w-full rounded-full bg-slate-900 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                disabled={submitting}
+                className="w-full rounded-full bg-slate-900 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Log In
+                {submitting ? 'Logging in…' : 'Log In'}
               </button>
             </form>
           </div>

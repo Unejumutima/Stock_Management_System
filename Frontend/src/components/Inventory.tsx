@@ -1,26 +1,52 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronDownIcon, DownloadIcon, SearchIcon } from '../constants/icons'
 import {
   INVENTORY_CATEGORIES,
-  INVENTORY_ROWS,
-  LOW_STOCK_ALERTS,
-  RECENT_UPDATES,
   STATUS_BADGE_CLASS,
   STATUS_LABELS,
   STOCK_STATUS_OPTIONS,
   type StockStatus,
 } from '../constants/inventory'
 import { btnPrimaryClass, inputClass, panelClass, selectClass } from '../constants/theme'
+import {
+  fetchInventory,
+  fetchInventoryOverview,
+  fetchLowStock,
+  type InventoryItem,
+  type InventoryOverview,
+} from '../services/inventory.service'
 import { AppLayout } from './layout/AppLayout'
 import { KpiCard } from './ui/KpiCard'
 
+function formatValue(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}k`
+  return `$${n.toFixed(2)}`
+}
+
 export default function Inventory() {
+  const [items, setItems] = useState<InventoryItem[]>([])
+  const [overview, setOverview] = useState<InventoryOverview | null>(null)
+  const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All categories')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
+  useEffect(() => {
+    Promise.all([fetchInventory(), fetchInventoryOverview(), fetchLowStock()])
+      .then(([inventoryData, overviewData, lowData]) => {
+        setItems(inventoryData)
+        setOverview(overviewData)
+        setLowStockItems(lowData)
+      })
+      .catch((err) => setApiError(err.response?.data?.message || 'Failed to load inventory'))
+      .finally(() => setLoading(false))
+  }, [])
+
   const filtered = useMemo(() => {
-    return INVENTORY_ROWS.filter((row) => {
+    return items.filter((row) => {
       const q = query.trim().toLowerCase()
       const matchesQuery =
         !q ||
@@ -31,10 +57,7 @@ export default function Inventory() {
       const matchesStatus = statusFilter === 'all' || row.status === statusFilter
       return matchesQuery && matchesCategory && matchesStatus
     })
-  }, [query, category, statusFilter])
-
-  const lowCount = INVENTORY_ROWS.filter((r) => r.status === 'low_stock' || r.status === 'out_of_stock').length
-  const totalUnits = INVENTORY_ROWS.reduce((sum, r) => sum + r.current, 0)
+  }, [items, query, category, statusFilter])
 
   return (
     <AppLayout
@@ -55,11 +78,15 @@ export default function Inventory() {
         </button>
       </section>
 
+      {apiError ? (
+        <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{apiError}</p>
+      ) : null}
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           compact
           title="Total products"
-          value="248"
+          value={overview ? String(overview.productCount) : '—'}
           icon={
             <svg className="size-5" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25" />
@@ -69,7 +96,7 @@ export default function Inventory() {
         <KpiCard
           compact
           title="Total units in stock"
-          value={totalUnits.toLocaleString()}
+          value={overview ? overview.totalUnits.toLocaleString() : '—'}
           icon={
             <svg className="size-5" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5v-.75A2.25 2.25 0 0 0 18 4.5h-2.25a2.25 2.25 0 0 0-2.25 2.25v.75m8.25-3h-12a2.25 2.25 0 0 0-2.25 2.25v.75" />
@@ -79,7 +106,7 @@ export default function Inventory() {
         <KpiCard
           compact
           title="Low stock items"
-          value={String(lowCount)}
+          value={overview ? String(overview.lowStockCount + overview.outOfStockCount) : '—'}
           icon={
             <svg className="size-5" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
@@ -89,7 +116,7 @@ export default function Inventory() {
         <KpiCard
           compact
           title="Inventory value"
-          value="$1.42M"
+          value={overview ? formatValue(overview.totalInventoryValue) : '—'}
           icon={
             <svg className="size-5" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659" />
@@ -140,10 +167,7 @@ export default function Inventory() {
                 <tr>
                   {['Product Name', 'SKU', 'Category', 'Qty Purchased', 'Qty Sold', 'Current Stock', 'Stock Status'].map(
                     (h) => (
-                      <th
-                        key={h}
-                        className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
-                      >
+                      <th key={h} className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
                         {h}
                       </th>
                     ),
@@ -151,57 +175,69 @@ export default function Inventory() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/80"
-                  >
-                    <td className="px-5 py-4 font-medium text-slate-800">{row.name}</td>
-                    <td className="px-5 py-4 font-mono text-xs text-slate-500">{row.sku}</td>
-                    <td className="px-5 py-4 text-slate-600">{row.category}</td>
-                    <td className="px-5 py-4 tabular-nums text-slate-600">{row.purchased.toLocaleString()}</td>
-                    <td className="px-5 py-4 tabular-nums text-slate-600">{row.sold.toLocaleString()}</td>
-                    <td className="px-5 py-4">
-                      <StockValue current={row.current} status={row.status} />
-                    </td>
-                    <td className="px-5 py-4">
-                      <StatusBadge status={row.status} />
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-500">
+                      Loading inventory…
                     </td>
                   </tr>
-                ))}
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-500">
+                      No inventory items match your filters.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/80"
+                    >
+                      <td className="px-5 py-4 font-medium text-slate-800">{row.name}</td>
+                      <td className="px-5 py-4 font-mono text-xs text-slate-500">{row.sku}</td>
+                      <td className="px-5 py-4 text-slate-600">{row.category}</td>
+                      <td className="px-5 py-4 tabular-nums text-slate-600">{(row.totalPurchased ?? 0).toLocaleString()}</td>
+                      <td className="px-5 py-4 tabular-nums text-slate-600">{(row.totalSold ?? 0).toLocaleString()}</td>
+                      <td className="px-5 py-4">
+                        <StockValue current={row.stock} status={row.status} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <StatusBadge status={row.status} />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-          {filtered.length === 0 ? (
-            <p className="px-5 py-12 text-center text-sm text-slate-500">No inventory items match your filters.</p>
-          ) : null}
         </article>
 
         <aside className="space-y-4">
-          <SidePanel title="Recently updated" items={RECENT_UPDATES.map((u) => ({ primary: u.product, secondary: u.action, meta: u.time }))} />
+          {/* Low stock alerts from real API data */}
           <SidePanel
             title="Low stock alerts"
-            items={LOW_STOCK_ALERTS.map((a) => ({
-              primary: a.product,
+            items={lowStockItems.slice(0, 6).map((a) => ({
+              primary: a.name,
               secondary: a.sku,
-              meta: a.remaining === 0 ? 'Out of stock' : `${a.remaining} left`,
+              meta: a.stock === 0 ? 'Out of stock' : `${a.stock} left`,
               alert: true,
             }))}
+            emptyMessage="No low stock items."
           />
           <article className={`${panelClass} !p-5`}>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Inventory insights</p>
             <ul className="mt-4 space-y-3 text-sm">
               <li className="flex justify-between gap-3">
-                <span className="text-slate-600">Avg. days of cover</span>
-                <span className="font-semibold text-[#0B2735]">18 days</span>
+                <span className="text-slate-600">Out of stock</span>
+                <span className="font-semibold text-rose-600">{overview ? overview.outOfStockCount : '—'}</span>
               </li>
               <li className="flex justify-between gap-3">
-                <span className="text-slate-600">Reorder queue</span>
-                <span className="font-semibold text-amber-700">6 SKUs</span>
+                <span className="text-slate-600">Low stock</span>
+                <span className="font-semibold text-amber-700">{overview ? overview.lowStockCount : '—'} SKUs</span>
               </li>
               <li className="flex justify-between gap-3">
-                <span className="text-slate-600">Turnover (30d)</span>
-                <span className="font-semibold text-emerald-600">+12.4%</span>
+                <span className="text-slate-600">Total products</span>
+                <span className="font-semibold text-[#0B2735]">{overview ? overview.productCount : '—'}</span>
               </li>
             </ul>
           </article>
@@ -253,22 +289,28 @@ function StatusBadge({ status }: { status: StockStatus }) {
 function SidePanel({
   title,
   items,
+  emptyMessage,
 }: {
   title: string
   items: { primary: string; secondary: string; meta: string; alert?: boolean }[]
+  emptyMessage?: string
 }) {
   return (
     <article className={`${panelClass} !p-5`}>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{title}</p>
-      <ul className="mt-4 space-y-3">
-        {items.map((item) => (
-          <li key={`${item.primary}-${item.meta}`} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
-            <p className="text-sm font-medium text-slate-800">{item.primary}</p>
-            <p className="mt-0.5 text-xs text-slate-500">{item.secondary}</p>
-            <p className={`mt-1 text-xs font-medium ${item.alert ? 'text-amber-700' : 'text-slate-400'}`}>{item.meta}</p>
-          </li>
-        ))}
-      </ul>
+      {items.length === 0 ? (
+        <p className="mt-3 text-xs text-slate-400">{emptyMessage ?? 'No items.'}</p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {items.map((item) => (
+            <li key={`${item.primary}-${item.meta}`} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+              <p className="text-sm font-medium text-slate-800">{item.primary}</p>
+              <p className="mt-0.5 text-xs text-slate-500">{item.secondary}</p>
+              <p className={`mt-1 text-xs font-medium ${item.alert ? 'text-amber-700' : 'text-slate-400'}`}>{item.meta}</p>
+            </li>
+          ))}
+        </ul>
+      )}
     </article>
   )
 }

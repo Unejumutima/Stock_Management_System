@@ -1,8 +1,9 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import logoImg from '../../assets/logo.png'
 import { LogOutIcon } from '../../constants/icons'
 import { NAV_ITEMS } from '../../constants/navigation'
 import { colors } from '../../constants/theme'
+import { useAuth } from '../../context/AuthContext'
 
 type SidebarProps = {
   open: boolean
@@ -10,6 +11,13 @@ type SidebarProps = {
 }
 
 export function Sidebar({ open, onClose }: SidebarProps) {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
+
+  async function handleLogout() {
+    await logout()
+    navigate('/login', { replace: true })
+  }
   return (
     <aside
       id="sidebar-nav"
@@ -60,6 +68,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </div>
         <button
           type="button"
+          onClick={handleLogout}
           className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] py-3 text-sm font-medium text-white/80 transition hover:border-white/20 hover:bg-white/[0.08] hover:text-white"
         >
           <LogOutIcon className="size-[1.125rem] shrink-0 opacity-80" />

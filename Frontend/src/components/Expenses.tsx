@@ -5,8 +5,6 @@ import {
   EXPENSE_CATEGORIES,
   EXPENSE_FILTER_CATEGORIES,
   expenseCategoryClass,
-  INITIAL_EXPENSES,
-  type Expense,
 } from '../constants/expenses'
 import { formatCurrency } from '../constants/products'
 import { btnPrimaryClass, btnSecondaryClass, fieldClass, inputClass, panelClass, selectClass } from '../constants/theme'
@@ -18,6 +16,7 @@ import {
   todayISO,
   type DateRangeValue,
 } from '../constants/transactions'
+import { createExpense, deleteExpense, fetchExpenses, type Expense } from '../services/expense.service'
 import { AppLayout } from './layout/AppLayout'
 import { KpiCard } from './ui/KpiCard'
 
@@ -39,7 +38,7 @@ const emptyForm = (): ExpenseForm => ({
 
 function computeStats(expenses: Expense[]) {
   const total = expenses.reduce((s, e) => s + e.amount, 0)
-  const monthExpenses = expenses.filter((e) => isThisMonth(e.date))
+  const monthExpenses = expenses.filter((e) => isThisMonth(e.expenseDate))
   const monthTotal = monthExpenses.reduce((s, e) => s + e.amount, 0)
 
   const byCategory = new Map<string, number>()
@@ -61,12 +60,21 @@ function computeStats(expenses: Expense[]) {
 }
 
 export default function Expenses() {
-  const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES)
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('All categories')
   const [dateRange, setDateRange] = useState<DateRangeValue>('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<ExpenseForm>(emptyForm)
+
+  useEffect(() => {
+    fetchExpenses()
+      .then(setExpenses)
+      .catch((err) => setApiError(err.response?.data?.message || 'Failed to load expenses'))
+      .finally(() => setLoading(false))
+  }, [])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -75,12 +83,13 @@ export default function Expenses() {
         const matchesQuery =
           !q ||
           row.category.toLowerCase().includes(q) ||
-          row.description.toLowerCase().includes(q)
+          (row.description ?? '').toLowerCase().includes(q) ||
+          (row.notes ?? '').toLowerCase().includes(q)
         const matchesCategory = categoryFilter === 'All categories' || row.category === categoryFilter
-        const matchesDate = isWithinDateRange(row.date, dateRange)
+        const matchesDate = isWithinDateRange(row.expenseDate, dateRange)
         return matchesQuery && matchesCategory && matchesDate
       })
-      .sort((a, b) => b.date.localeCompare(a.date))
+      .sort((a, b) => b.expenseDate.localeCompare(a.expenseDate))
   }, [expenses, query, categoryFilter, dateRange])
 
   const stats = useMemo(() => computeStats(expenses), [expenses])
@@ -95,28 +104,34 @@ export default function Expenses() {
     setForm(emptyForm())
   }
 
-  const handleDelete = (id: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id))
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteExpense(id)
+      setExpenses((prev) => prev.filter((e) => e.id !== id))
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete expense')
+    }
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     const amount = Number.parseFloat(form.amount)
     const category =
       form.category === CUSTOM_CATEGORY_VALUE ? form.customCategory.trim() : form.category
     if (!category || !form.date || Number.isNaN(amount) || amount <= 0) return
 
-    setExpenses((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
+    try {
+      const created = await createExpense({
         category,
-        description: form.notes.trim() || '—',
         amount,
-        date: form.date,
-      },
-    ])
-    closeModal()
+        expenseDate: form.date,
+        notes: form.notes.trim() || undefined,
+      })
+      setExpenses((prev) => [created, ...prev])
+      closeModal()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to create expense')
+    }
   }
 
   const categoryOptions = EXPENSE_FILTER_CATEGORIES.map((c) => ({ value: c, label: c }))
@@ -139,6 +154,10 @@ export default function Expenses() {
           Add Expense
         </button>
       </section>
+
+      {apiError ? (
+        <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{apiError}</p>
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard compact title="Total expenses" value={formatCurrency(stats.total)} sub={`${stats.count} recorded`} icon={<IconWallet />} />
@@ -193,7 +212,9 @@ export default function Expenses() {
         </div>
 
         <article className="overflow-hidden rounded-xl bg-white shadow-[0_8px_30px_-8px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/60">
-          {expenses.length === 0 ? (
+          {loading ? (
+            <p className="px-5 py-14 text-center text-sm text-slate-500">Loading expenses…</p>
+          ) : expenses.length === 0 ? (
             <EmptyState onAdd={openAddModal} />
           ) : filtered.length === 0 ? (
             <p className="px-5 py-14 text-center text-sm text-slate-500">No expenses match your search or filters.</p>
@@ -216,8 +237,8 @@ export default function Expenses() {
                         <CategoryBadge category={row.category} />
                       </td>
                       <td className="px-4 py-4 tabular-nums font-semibold text-[#0B2735]">{formatCurrency(row.amount)}</td>
-                      <td className="px-4 py-4 text-slate-600">{formatDisplayDate(row.date)}</td>
-                      <td className="px-4 py-4 text-slate-600">{row.description}</td>
+                      <td className="px-4 py-4 text-slate-600">{formatDisplayDate(row.expenseDate)}</td>
+                      <td className="px-4 py-4 text-slate-600">{row.description || row.notes || '—'}</td>
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-end">
                           <ActionButton label={`Delete expense: ${row.category}`} variant="danger" onClick={() => handleDelete(row.id)}>

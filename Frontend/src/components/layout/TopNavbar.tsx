@@ -7,8 +7,9 @@ import {
   SearchIcon,
   SunIcon,
 } from '../../constants/icons'
-import { DEFAULT_SEARCH_PLACEHOLDER, USER } from '../../constants/navigation'
+import { DEFAULT_SEARCH_PLACEHOLDER } from '../../constants/navigation'
 import { inputClass } from '../../constants/theme'
+import { useAuth } from '../../context/AuthContext'
 
 type TopNavbarProps = {
   title: string
@@ -26,6 +27,19 @@ export function TopNavbar({
   menuOpen,
 }: TopNavbarProps) {
   const [appearanceDark, setAppearanceDark] = useState(false)
+  const { user } = useAuth()
+
+  // Derive initials from the logged-in user's full name, fallback to '?'
+  const initials = user?.fullName
+    ? user.fullName
+        .split(' ')
+        .slice(0, 2)
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+    : '?'
+  const displayName = user?.fullName ?? 'User'
+  const displayRole = user?.role ?? ''
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 shadow-[0_1px_0_rgba(15,23,42,0.03),0_12px_40px_-24px_rgba(15,23,42,0.12)] backdrop-blur-xl">
@@ -90,11 +104,11 @@ export function TopNavbar({
             aria-label="Account menu"
           >
             <span className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-[#0B2735] to-[#143d52] text-xs font-semibold text-white shadow-md ring-2 ring-white">
-              {USER.initials}
+              {initials}
             </span>
             <span className="hidden text-left text-sm sm:block">
-              <span className="block font-semibold text-[#0B2735]">{USER.name}</span>
-              <span className="block text-xs text-slate-500">{USER.role}</span>
+              <span className="block font-semibold text-[#0B2735]">{displayName}</span>
+              <span className="block text-xs text-slate-500">{displayRole}</span>
             </span>
           </button>
         </div>

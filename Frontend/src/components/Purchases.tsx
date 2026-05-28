@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { ChevronDownIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from '../constants/icons'
-import { formatCurrency, INITIAL_PRODUCTS, PRODUCT_CATEGORIES, type Product } from '../constants/products'
-import { INITIAL_PURCHASES, purchaseTotalCost, type Purchase } from '../constants/purchases'
+import { formatCurrency, PRODUCT_CATEGORIES } from '../constants/products'
 import { btnPrimaryClass, btnSecondaryClass, fieldClass, inputClass, panelClass, selectClass } from '../constants/theme'
 import {
   DATE_RANGE_OPTIONS,
@@ -11,6 +10,8 @@ import {
   todayISO,
   type DateRangeValue,
 } from '../constants/transactions'
+import { fetchProducts, type Product } from '../services/product.service'
+import { createPurchase, deletePurchase, fetchPurchases, type Purchase } from '../services/purchase.service'
 import { AppLayout } from './layout/AppLayout'
 import { KpiCard } from './ui/KpiCard'
 
@@ -21,21 +22,35 @@ type PurchaseForm = {
   purchaseDate: string
 }
 
-const emptyForm = (): PurchaseForm => ({
-  productId: INITIAL_PRODUCTS[0]?.id ?? '',
+const emptyForm = (products: Product[]): PurchaseForm => ({
+  productId: products[0] ? String(products[0].id) : '',
   quantity: '',
-  pricePerUnit: INITIAL_PRODUCTS[0] ? String(INITIAL_PRODUCTS[0].purchasePrice) : '',
+  pricePerUnit: products[0] ? String(products[0].purchasePrice) : '',
   purchaseDate: todayISO(),
 })
 
 export default function Purchases() {
-  const [purchases, setPurchases] = useState<Purchase[]>(INITIAL_PURCHASES)
+  const [purchases, setPurchases] = useState<Purchase[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [productFilter, setProductFilter] = useState('all')
   const [dateRange, setDateRange] = useState<DateRangeValue>('all')
   const [category, setCategory] = useState('All categories')
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<PurchaseForm>(emptyForm)
+  const [form, setForm] = useState<PurchaseForm>({ productId: '', quantity: '', pricePerUnit: '', purchaseDate: todayISO() })
+
+  useEffect(() => {
+    Promise.all([fetchPurchases(), fetchProducts()])
+      .then(([purchasesData, productsData]) => {
+        setPurchases(purchasesData)
+        setProducts(productsData)
+        setForm(emptyForm(productsData))
+      })
+      .catch((err) => setApiError(err.response?.data?.message || 'Failed to load data'))
+      .finally(() => setLoading(false))
+  }, [])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -45,7 +60,7 @@ export default function Purchases() {
         row.productName.toLowerCase().includes(q) ||
         row.sku.toLowerCase().includes(q) ||
         row.category.toLowerCase().includes(q)
-      const matchesProduct = productFilter === 'all' || row.productId === productFilter
+      const matchesProduct = productFilter === 'all' || String(row.productId) === productFilter
       const matchesCategory = category === 'All categories' || row.category === category
       const matchesDate = isWithinDateRange(row.purchaseDate, dateRange)
       return matchesQuery && matchesProduct && matchesCategory && matchesDate
@@ -54,29 +69,34 @@ export default function Purchases() {
 
   const stats = useMemo(() => {
     const totalUnits = purchases.reduce((sum, r) => sum + r.quantity, 0)
-    const totalCost = purchases.reduce((sum, r) => sum + purchaseTotalCost(r), 0)
+    const totalCost = purchases.reduce((sum, r) => sum + r.totalCost, 0)
     const monthCost = purchases
       .filter((r) => isThisMonth(r.purchaseDate))
-      .reduce((sum, r) => sum + purchaseTotalCost(r), 0)
+      .reduce((sum, r) => sum + r.totalCost, 0)
     return { count: purchases.length, totalUnits, totalCost, monthCost }
   }, [purchases])
 
   const openAddModal = () => {
-    setForm(emptyForm())
+    setForm(emptyForm(products))
     setModalOpen(true)
   }
 
   const closeModal = () => {
     setModalOpen(false)
-    setForm(emptyForm())
+    setForm(emptyForm(products))
   }
 
-  const handleDelete = (id: string) => {
-    setPurchases((prev) => prev.filter((p) => p.id !== id))
+  const handleDelete = async (id: number) => {
+    try {
+      await deletePurchase(id)
+      setPurchases((prev) => prev.filter((p) => p.id !== id))
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete purchase')
+    }
   }
 
   const handleProductChange = (productId: string) => {
-    const product = INITIAL_PRODUCTS.find((p) => p.id === productId)
+    const product = products.find((p) => String(p.id) === productId)
     setForm((f) => ({
       ...f,
       productId,
@@ -84,32 +104,29 @@ export default function Purchases() {
     }))
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    const product = INITIAL_PRODUCTS.find((p) => p.id === form.productId)
     const quantity = Number.parseInt(form.quantity, 10)
     const pricePerUnit = Number.parseFloat(form.pricePerUnit)
-    if (!product || !form.purchaseDate || Number.isNaN(quantity) || quantity <= 0 || Number.isNaN(pricePerUnit)) return
+    if (!form.productId || !form.purchaseDate || Number.isNaN(quantity) || quantity <= 0 || Number.isNaN(pricePerUnit)) return
 
-    setPurchases((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        productId: product.id,
-        productName: product.name,
-        sku: product.sku,
-        category: product.category,
+    try {
+      const created = await createPurchase({
+        productId: Number(form.productId),
         quantity,
         pricePerUnit,
         purchaseDate: form.purchaseDate,
-      },
-    ])
-    closeModal()
+      })
+      setPurchases((prev) => [created, ...prev])
+      closeModal()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to create purchase')
+    }
   }
 
   const productOptions = [
     { value: 'all', label: 'All products' },
-    ...INITIAL_PRODUCTS.map((p) => ({ value: p.id, label: p.name })),
+    ...products.map((p) => ({ value: String(p.id), label: p.name })),
   ]
 
   return (
@@ -130,6 +147,10 @@ export default function Purchases() {
           Add Purchase
         </button>
       </section>
+
+      {apiError ? (
+        <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{apiError}</p>
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard compact title="Total purchases" value={String(stats.count)} sub="Recorded transactions" icon={<KpiIconReceipt />} />
@@ -190,7 +211,9 @@ export default function Purchases() {
         </div>
 
         <article className="overflow-hidden rounded-xl bg-white shadow-[0_8px_30px_-8px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/60">
-          {purchases.length === 0 ? (
+          {loading ? (
+            <p className="px-5 py-14 text-center text-sm text-slate-500">Loading purchases…</p>
+          ) : purchases.length === 0 ? (
             <EmptyState onAdd={openAddModal} />
           ) : filtered.length === 0 ? (
             <p className="px-5 py-14 text-center text-sm text-slate-500">No purchases match your search or filters.</p>
@@ -215,7 +238,7 @@ export default function Purchases() {
                       <td className="px-4 py-4 font-mono text-xs text-slate-500">{row.sku}</td>
                       <td className="px-4 py-4 tabular-nums text-slate-600">{row.quantity.toLocaleString()}</td>
                       <td className="px-4 py-4 tabular-nums text-slate-600">{formatCurrency(row.pricePerUnit)}</td>
-                      <td className="px-4 py-4 tabular-nums font-medium text-[#0B2735]">{formatCurrency(purchaseTotalCost(row))}</td>
+                      <td className="px-4 py-4 tabular-nums font-medium text-[#0B2735]">{formatCurrency(row.totalCost)}</td>
                       <td className="px-4 py-4 text-slate-600">{formatDisplayDate(row.purchaseDate)}</td>
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-end">
@@ -234,7 +257,7 @@ export default function Purchases() {
       </section>
 
       {modalOpen ? (
-        <AddPurchaseModal form={form} setForm={setForm} products={INITIAL_PRODUCTS} onProductChange={handleProductChange} onClose={closeModal} onSubmit={handleSubmit} />
+        <AddPurchaseModal form={form} setForm={setForm} products={products} onProductChange={handleProductChange} onClose={closeModal} onSubmit={handleSubmit} />
       ) : null}
     </AppLayout>
   )
@@ -363,7 +386,7 @@ function AddPurchaseModal({
                 className={`${selectClass} w-full appearance-none pr-10`}
               >
                 {products.map((p) => (
-                  <option key={p.id} value={p.id}>
+                  <option key={p.id} value={String(p.id)}>
                     {p.name} ({p.sku})
                   </option>
                 ))}

@@ -1,48 +1,77 @@
+import { useEffect, useState } from 'react'
 import { panelClass } from '../constants/theme'
+import { fetchDashboard, type DashboardData } from '../services/dashboard.service'
 import { AppLayout } from './layout/AppLayout'
 import { KpiCard } from './ui/KpiCard'
 
-const topProducts = [
-  { name: 'West African Cocoa — Grade A', sku: 'ZHS-COC-104', share: 94, units: '2.4k sold' },
-  { name: 'Cold-pressed Palm Olein (20L)', sku: 'ZHS-OLE-088', share: 87, units: '1.9k sold' },
-  { name: 'Premium Basmati Rice (25kg)', sku: 'ZHS-RIC-212', share: 76, units: '1.6k sold' },
-  { name: 'Sunflower Cooking Oil (5L)', sku: 'ZHS-OIL-031', share: 68, units: '1.2k sold' },
-  { name: 'Granulated Sugar (50kg)', sku: 'ZHS-SUG-017', share: 61, units: '980 sold' },
-]
+function formatCurrency(value: number): string {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`
+  if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}k`
+  return `$${value.toFixed(2)}`
+}
 
 export default function Dashboard() {
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchDashboard()
+      .then(setData)
+      .catch((err) => setError(err.response?.data?.message || 'Failed to load dashboard'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <AppLayout title="Dashboard" subtitle="Loading…">
+        <p className="py-20 text-center text-sm text-slate-500">Loading dashboard data…</p>
+      </AppLayout>
+    )
+  }
+
+  if (error || !data) {
+    return (
+      <AppLayout title="Dashboard" subtitle="Error">
+        <p className="py-20 text-center text-sm text-rose-600">{error ?? 'Unknown error'}</p>
+      </AppLayout>
+    )
+  }
+
+  const { kpis, monthlyOverview, topProducts } = data
+
+  // Compute max revenue across months for chart scaling
+  const maxRevenue = Math.max(...monthlyOverview.map((m) => m.revenue), 1)
+  const maxBar = Math.max(...monthlyOverview.flatMap((m) => [m.revenue, m.expenses]), 1)
+
   return (
     <AppLayout
       title="Dashboard"
-      subtitle="Welcome back, Honorine — here is how Zuba House is performing."
+      subtitle="Welcome back — here is how Zuba House is performing."
     >
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="Total stock"
-          value="12,847"
-          sub="units on hand across 3 hubs"
-          trend="+4.2%"
+          value={kpis.totalStock.toLocaleString()}
+          sub="units on hand"
           icon={<StockIcon />}
         />
         <KpiCard
           title="Revenue (MTD)"
-          value="$284,920"
+          value={formatCurrency(kpis.totalRevenue)}
           sub="invoiced sales, net of returns"
-          trend="+8.1%"
           icon={<RevenueIcon />}
         />
         <KpiCard
-          title="Profit (MTD)"
-          value="$42,180"
+          title="Gross profit (MTD)"
+          value={formatCurrency(kpis.grossProfit)}
           sub="after landed cost allocation"
-          trend="+3.4%"
           icon={<ProfitIcon />}
         />
         <KpiCard
           title="Expenses (MTD)"
-          value="$18,340"
+          value={formatCurrency(kpis.totalExpenses)}
           sub="logistics, utilities, payroll"
-          trend="-1.2%"
           trendUp={false}
           icon={<ExpenseIcon />}
         />
@@ -51,16 +80,16 @@ export default function Dashboard() {
       <section className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
         <div className="lg:w-[65%] lg:min-w-0 lg:flex-1">
           <article className={`h-full ${panelClass}`}>
-            <InventoryValueChartPlaceholder />
+            <InventoryValueChartPlaceholder monthlyOverview={monthlyOverview} />
           </article>
         </div>
-        <NetProfitCard />
+        <NetProfitCard kpis={kpis} />
       </section>
 
       <section className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
         <div className="lg:w-[65%] lg:min-w-0 lg:flex-1">
           <article className={`h-full ${panelClass}`}>
-            <MonthlyPerformancePlaceholder />
+            <MonthlyPerformancePlaceholder monthlyOverview={monthlyOverview} maxBar={maxBar} />
           </article>
         </div>
         <div className="lg:w-[35%] lg:min-w-0 lg:max-w-md lg:shrink-0">
@@ -72,27 +101,36 @@ export default function Dashboard() {
               </div>
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">Last 30 days</span>
             </div>
-            <ul className="space-y-4">
-              {topProducts.map((p, idx) => (
-                <li key={p.sku} className="group">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold text-slate-600 transition group-hover:bg-[#0B2735]/10 group-hover:text-[#0B2735]">
-                        {idx + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-slate-800">{p.name}</p>
-                        <p className="truncate text-xs text-slate-500">
-                          {p.sku} · {p.units}
-                        </p>
+            {topProducts.length === 0 ? (
+              <p className="text-sm text-slate-500">No sales data yet.</p>
+            ) : (
+              <ul className="space-y-4">
+                {topProducts.map((p, idx) => {
+                  // Compute share relative to the top product's revenue
+                  const maxRevTop = topProducts[0]?.revenue ?? 1
+                  const share = maxRevTop > 0 ? Math.round((p.revenue / maxRevTop) * 100) : 0
+                  return (
+                    <li key={p.id} className="group">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold text-slate-600 transition group-hover:bg-[#0B2735]/10 group-hover:text-[#0B2735]">
+                            {idx + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-slate-800">{p.name}</p>
+                            <p className="truncate text-xs text-slate-500">
+                              {p.sku} · {p.unitsSold.toLocaleString()} sold
+                            </p>
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold tabular-nums text-emerald-600">{share}%</span>
                       </div>
-                    </div>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums text-emerald-600">{p.share}%</span>
-                  </div>
-                  <ShareProgressBar share={p.share} />
-                </li>
-              ))}
-            </ul>
+                      <ShareProgressBar share={share} />
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
           </article>
         </div>
       </section>
@@ -100,30 +138,35 @@ export default function Dashboard() {
   )
 }
 
-function NetProfitCard() {
+function NetProfitCard({ kpis }: { kpis: DashboardData['kpis'] }) {
   return (
     <div className="lg:w-[35%] lg:min-w-0 lg:max-w-md lg:shrink-0">
       <article className="flex h-full flex-col rounded-2xl border border-slate-200/80 bg-gradient-to-br from-[#0B2735] via-[#0f3244] to-[#123a4f] p-6 text-white shadow-[0_18px_48px_-12px_rgba(11,39,53,0.45)] ring-1 ring-white/10">
         <p className="text-xs font-medium uppercase tracking-wide text-white/55">Net profit (MTD)</p>
-        <p className="mt-3 text-4xl font-semibold tracking-tight sm:text-[2.65rem]">$23,840</p>
-        <p className="mt-2 text-sm text-white/65">Operating margin holding steady after freight normalization.</p>
+        <p className="mt-3 text-4xl font-semibold tracking-tight sm:text-[2.65rem]">{formatCurrency(kpis.netProfit)}</p>
+        <p className="mt-2 text-sm text-white/65">Operating margin after all expenses.</p>
         <div className="mt-8 space-y-4 border-t border-white/15 pt-6">
           <div className="flex items-center justify-between gap-3 text-sm">
             <span className="text-white/70">Gross profit</span>
-            <span className="font-semibold tabular-nums">$42,180</span>
+            <span className="font-semibold tabular-nums">{formatCurrency(kpis.grossProfit)}</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-white/10">
-            <BarFill width="78%" className="bg-emerald-400/90" />
+            <BarFill
+              width={kpis.totalRevenue > 0 ? `${Math.min((kpis.grossProfit / kpis.totalRevenue) * 100, 100)}%` : '0%'}
+              className="bg-emerald-400/90"
+            />
           </div>
           <div className="flex items-center justify-between gap-3 text-sm">
             <span className="text-white/70">Operating expenses</span>
-            <span className="font-semibold tabular-nums text-white/90">$18,340</span>
+            <span className="font-semibold tabular-nums text-white/90">{formatCurrency(kpis.totalExpenses)}</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-white/10">
-            <BarFill width="34%" className="bg-white/35" />
+            <BarFill
+              width={kpis.totalRevenue > 0 ? `${Math.min((kpis.totalExpenses / kpis.totalRevenue) * 100, 100)}%` : '0%'}
+              className="bg-white/35"
+            />
           </div>
         </div>
-        <p className="mt-auto pt-8 text-xs text-white/45">Figures exclude one-off equipment capex booked last week.</p>
       </article>
     </div>
   )
@@ -176,15 +219,25 @@ function ExpenseIcon() {
   )
 }
 
-function InventoryValueChartPlaceholder() {
+function InventoryValueChartPlaceholder({ monthlyOverview }: { monthlyOverview: DashboardData['monthlyOverview'] }) {
   const w = 640
   const h = 220
   const pad = 24
-  const path =
-    `M ${pad} ${h - pad * 1.2} ` +
-    `C ${w * 0.2} ${h * 0.55} ${w * 0.35} ${h * 0.42} ${w * 0.45} ${h * 0.48} ` +
-    `S ${w * 0.62} ${h * 0.35} ${w * 0.72} ${h * 0.4} ` +
-    `S ${w - pad} ${h * 0.28} ${w - pad} ${pad * 1.4}`
+
+  // Build SVG path from real monthly revenue data
+  const revenues = monthlyOverview.map((m) => m.revenue)
+  const maxRev = Math.max(...revenues, 1)
+  const points = revenues.map((rev, i) => {
+    const x = pad + (i / Math.max(revenues.length - 1, 1)) * (w - pad * 2)
+    const y = pad * 1.4 + (1 - rev / maxRev) * (h - pad * 2.6)
+    return { x, y }
+  })
+  const path = points.length > 1
+    ? points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+    : `M ${pad} ${h - pad * 1.2} L ${w - pad} ${pad * 1.4}`
+
+  const totalRevenue = revenues.reduce((s, v) => s + v, 0)
+  const labels = monthlyOverview.map((m) => m.label)
 
   return (
     <InventoryChart
@@ -192,9 +245,10 @@ function InventoryValueChartPlaceholder() {
       h={h}
       pad={pad}
       path={path}
-      title="Inventory value"
-      value="$1.42M"
-      delta="+6.8% vs last quarter"
+      title="Revenue trend"
+      value={formatCurrency(totalRevenue)}
+      delta="Last 6 months"
+      labels={labels}
     />
   )
 }
@@ -207,6 +261,7 @@ function InventoryChart({
   title,
   value,
   delta,
+  labels,
 }: {
   w: number
   h: number
@@ -215,11 +270,12 @@ function InventoryChart({
   title: string
   value: string
   delta: string
+  labels: string[]
 }) {
   return (
     <div className="relative">
       <ChartHeader title={title} value={value} delta={delta} />
-      <ChartBody w={w} h={h} pad={pad} path={path} />
+      <ChartBody w={w} h={h} pad={pad} path={path} labels={labels} />
     </div>
   )
 }
@@ -249,7 +305,7 @@ function ChartHeader({ title, value, delta }: { title: string; value: string; de
   )
 }
 
-function ChartBody({ w, h, pad, path }: { w: number; h: number; pad: number; path: string }) {
+function ChartBody({ w, h, pad, path, labels }: { w: number; h: number; pad: number; path: string; labels: string[] }) {
   return (
     <div className="relative h-[220px] overflow-hidden rounded-xl bg-gradient-to-b from-slate-50/80 to-white">
       <svg viewBox={`0 0 ${w} ${h}`} className="size-full" preserveAspectRatio="none" aria-hidden>
@@ -273,25 +329,17 @@ function ChartBody({ w, h, pad, path }: { w: number; h: number; pad: number; pat
         <path d={`${path} L ${w - pad} ${h - pad} L ${pad} ${h - pad} Z`} fill="url(#invFill)" />
         <path d={path} fill="none" stroke="#0B2735" strokeWidth="2.25" strokeLinecap="round" />
       </svg>
-      <ChartMonthLabels />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-6 pb-2 text-[11px] font-medium text-slate-400">
+        {labels.map((m) => (
+          <span key={m}>{m}</span>
+        ))}
+      </div>
     </div>
   )
 }
 
-function ChartMonthLabels() {
-  return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between px-6 pb-2 text-[11px] font-medium text-slate-400">
-      {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((m) => (
-        <span key={m}>{m}</span>
-      ))}
-    </div>
-  )
-}
-
-function MonthlyPerformancePlaceholder() {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-  const bars = [42, 55, 48, 62, 58, 71]
-  const lineY = [68, 62, 65, 58, 60, 54]
+function MonthlyPerformancePlaceholder({ monthlyOverview, maxBar }: { monthlyOverview: DashboardData['monthlyOverview']; maxBar: number }) {
+  const months = monthlyOverview.map((m) => m.label)
 
   return (
     <div>
@@ -308,7 +356,7 @@ function MonthlyPerformancePlaceholder() {
             <span className="size-2 rounded-sm bg-slate-300" /> Costs
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="size-2 rounded-full border-2 border-emerald-500" /> Margin %
+            <span className="size-2 rounded-full border-2 border-emerald-500" /> Net profit
           </span>
         </div>
       </div>
@@ -320,24 +368,30 @@ function MonthlyPerformancePlaceholder() {
               <stop offset="100%" stopColor="#0B2735" stopOpacity="0.45" />
             </linearGradient>
           </defs>
-          {months.map((_, i) => {
+          {monthlyOverview.map((m, i) => {
             const x = 28 + i * 52
-            const bh = bars[i]! * 1.35
-            return <rect key={i} x={x} y={170 - bh} width="18" height={bh} rx="5" fill="url(#barGrad)" opacity="0.92" />
+            const rh = (m.revenue / maxBar) * 135
+            return <rect key={`r-${i}`} x={x} y={170 - rh} width="18" height={rh} rx="5" fill="url(#barGrad)" opacity="0.92" />
           })}
-          {months.map((_, i) => {
+          {monthlyOverview.map((m, i) => {
             const x = 52 + i * 52
-            const bh = bars[i]! * 0.55
-            return <rect key={`c-${i}`} x={x} y={170 - bh} width="18" height={bh} rx="5" fill="#cbd5e1" opacity="0.95" />
+            const eh = (m.expenses / maxBar) * 135
+            return <rect key={`e-${i}`} x={x} y={170 - eh} width="18" height={eh} rx="5" fill="#cbd5e1" opacity="0.95" />
           })}
-          <polyline
-            fill="none"
-            stroke="#10b981"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            points={lineY.map((y, i) => `${46 + i * 52},${y + 35}`).join(' ')}
-          />
+          {monthlyOverview.length > 1 ? (
+            <polyline
+              fill="none"
+              stroke="#10b981"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              points={monthlyOverview.map((m, i) => {
+                const x = 46 + i * 52
+                const y = 170 - (m.netProfit / maxBar) * 135
+                return `${x},${Math.max(10, Math.min(170, y))}`
+              }).join(' ')}
+            />
+          ) : null}
         </svg>
         <div className="absolute inset-x-0 bottom-1 flex justify-between px-4 text-[11px] font-medium text-slate-400">
           {months.map((m) => (

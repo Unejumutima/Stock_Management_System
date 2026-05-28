@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { ChevronDownIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from '../constants/icons'
-import { formatCurrency, INITIAL_PRODUCTS, PRODUCT_CATEGORIES, type Product } from '../constants/products'
-import { INITIAL_SALES, saleTotalRevenue, type Sale } from '../constants/sales'
+import { formatCurrency, PRODUCT_CATEGORIES } from '../constants/products'
 import { btnPrimaryClass, btnSecondaryClass, fieldClass, inputClass, panelClass, selectClass } from '../constants/theme'
 import {
   DATE_RANGE_OPTIONS,
@@ -11,31 +10,46 @@ import {
   todayISO,
   type DateRangeValue,
 } from '../constants/transactions'
+import { fetchProducts, type Product } from '../services/product.service'
+import { createSale, deleteSale, fetchSales, type Sale } from '../services/sale.service'
 import { AppLayout } from './layout/AppLayout'
 import { KpiCard } from './ui/KpiCard'
 
 type SaleForm = {
   productId: string
   quantity: string
-  sellingPrice: string
   saleDate: string
 }
 
-const emptyForm = (): SaleForm => ({
-  productId: INITIAL_PRODUCTS[0]?.id ?? '',
+const emptyForm = (products: Product[]): SaleForm => ({
+  productId: products[0] ? String(products[0].id) : '',
   quantity: '',
-  sellingPrice: INITIAL_PRODUCTS[0] ? String(INITIAL_PRODUCTS[0].sellingPrice) : '',
   saleDate: todayISO(),
 })
 
 export default function Sales() {
-  const [sales, setSales] = useState<Sale[]>(INITIAL_SALES)
+  const [sales, setSales] = useState<Sale[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [productFilter, setProductFilter] = useState('all')
   const [dateRange, setDateRange] = useState<DateRangeValue>('all')
   const [category, setCategory] = useState('All categories')
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<SaleForm>(emptyForm)
+  const [form, setForm] = useState<SaleForm>({ productId: '', quantity: '', saleDate: todayISO() })
+
+  // Load sales and products from API on mount
+  useEffect(() => {
+    Promise.all([fetchSales(), fetchProducts()])
+      .then(([salesData, productsData]) => {
+        setSales(salesData)
+        setProducts(productsData)
+        setForm(emptyForm(productsData))
+      })
+      .catch((err) => setApiError(err.response?.data?.message || 'Failed to load data'))
+      .finally(() => setLoading(false))
+  }, [])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -45,7 +59,7 @@ export default function Sales() {
         row.productName.toLowerCase().includes(q) ||
         row.sku.toLowerCase().includes(q) ||
         row.category.toLowerCase().includes(q)
-      const matchesProduct = productFilter === 'all' || row.productId === productFilter
+      const matchesProduct = productFilter === 'all' || String(row.productId) === productFilter
       const matchesCategory = category === 'All categories' || row.category === category
       const matchesDate = isWithinDateRange(row.saleDate, dateRange)
       return matchesQuery && matchesProduct && matchesCategory && matchesDate
@@ -53,63 +67,54 @@ export default function Sales() {
   }, [sales, query, productFilter, category, dateRange])
 
   const stats = useMemo(() => {
-    const totalRevenue = sales.reduce((sum, r) => sum + saleTotalRevenue(r), 0)
+    const totalRevenue = sales.reduce((sum, r) => sum + r.totalRevenue, 0)
     const totalUnits = sales.reduce((sum, r) => sum + r.quantity, 0)
     const monthRevenue = sales
       .filter((r) => isThisMonth(r.saleDate))
-      .reduce((sum, r) => sum + saleTotalRevenue(r), 0)
+      .reduce((sum, r) => sum + r.totalRevenue, 0)
     return { count: sales.length, totalRevenue, totalUnits, monthRevenue }
   }, [sales])
 
   const openAddModal = () => {
-    setForm(emptyForm())
+    setForm(emptyForm(products))
     setModalOpen(true)
   }
 
   const closeModal = () => {
     setModalOpen(false)
-    setForm(emptyForm())
+    setForm(emptyForm(products))
   }
 
-  const handleDelete = (id: string) => {
-    setSales((prev) => prev.filter((s) => s.id !== id))
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteSale(id)
+      setSales((prev) => prev.filter((s) => s.id !== id))
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete sale')
+    }
   }
 
-  const handleProductChange = (productId: string) => {
-    const product = INITIAL_PRODUCTS.find((p) => p.id === productId)
-    setForm((f) => ({
-      ...f,
-      productId,
-      sellingPrice: product ? String(product.sellingPrice) : f.sellingPrice,
-    }))
-  }
-
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    const product = INITIAL_PRODUCTS.find((p) => p.id === form.productId)
     const quantity = Number.parseInt(form.quantity, 10)
-    const sellingPrice = Number.parseFloat(form.sellingPrice)
-    if (!product || !form.saleDate || Number.isNaN(quantity) || quantity <= 0 || Number.isNaN(sellingPrice)) return
+    if (!form.productId || !form.saleDate || Number.isNaN(quantity) || quantity <= 0) return
 
-    setSales((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        productId: product.id,
-        productName: product.name,
-        sku: product.sku,
-        category: product.category,
+    try {
+      const created = await createSale({
+        productId: Number(form.productId),
         quantity,
-        sellingPrice,
         saleDate: form.saleDate,
-      },
-    ])
-    closeModal()
+      })
+      setSales((prev) => [created, ...prev])
+      closeModal()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to create sale')
+    }
   }
 
   const productOptions = [
     { value: 'all', label: 'All products' },
-    ...INITIAL_PRODUCTS.map((p) => ({ value: p.id, label: p.name })),
+    ...products.map((p) => ({ value: String(p.id), label: p.name })),
   ]
 
   return (
@@ -130,6 +135,10 @@ export default function Sales() {
           Add Sale
         </button>
       </section>
+
+      {apiError ? (
+        <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{apiError}</p>
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard compact title="Total sales" value={String(stats.count)} sub="Recorded transactions" icon={<KpiIconTrend />} />
@@ -190,7 +199,9 @@ export default function Sales() {
         </div>
 
         <article className="overflow-hidden rounded-xl bg-white shadow-[0_8px_30px_-8px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/60">
-          {sales.length === 0 ? (
+          {loading ? (
+            <p className="px-5 py-14 text-center text-sm text-slate-500">Loading sales…</p>
+          ) : sales.length === 0 ? (
             <EmptyState onAdd={openAddModal} />
           ) : filtered.length === 0 ? (
             <p className="px-5 py-14 text-center text-sm text-slate-500">No sales match your search or filters.</p>
@@ -215,7 +226,7 @@ export default function Sales() {
                       <td className="px-4 py-4 font-mono text-xs text-slate-500">{row.sku}</td>
                       <td className="px-4 py-4 tabular-nums text-slate-600">{row.quantity.toLocaleString()}</td>
                       <td className="px-4 py-4 tabular-nums text-slate-600">{formatCurrency(row.sellingPrice)}</td>
-                      <td className="px-4 py-4 tabular-nums font-semibold text-emerald-700">{formatCurrency(saleTotalRevenue(row))}</td>
+                      <td className="px-4 py-4 tabular-nums font-semibold text-emerald-700">{formatCurrency(row.totalRevenue)}</td>
                       <td className="px-4 py-4 text-slate-600">{formatDisplayDate(row.saleDate)}</td>
                       <td className="px-4 py-4">
                         <div className="flex items-center justify-end">
@@ -234,7 +245,7 @@ export default function Sales() {
       </section>
 
       {modalOpen ? (
-        <AddSaleModal form={form} setForm={setForm} products={INITIAL_PRODUCTS} onProductChange={handleProductChange} onClose={closeModal} onSubmit={handleSubmit} />
+        <AddSaleModal form={form} setForm={setForm} products={products} onClose={closeModal} onSubmit={handleSubmit} />
       ) : null}
     </AppLayout>
   )
@@ -310,14 +321,12 @@ function AddSaleModal({
   form,
   setForm,
   products,
-  onProductChange,
   onClose,
   onSubmit,
 }: {
   form: SaleForm
   setForm: (value: SaleForm | ((prev: SaleForm) => SaleForm)) => void
   products: Product[]
-  onProductChange: (productId: string) => void
   onClose: () => void
   onSubmit: (e: FormEvent) => void
 }) {
@@ -333,9 +342,10 @@ function AddSaleModal({
     }
   }, [onClose])
 
+  // Show the selected product's selling price as a preview
+  const selectedProduct = products.find((p) => String(p.id) === form.productId)
   const qty = Number.parseInt(form.quantity, 10)
-  const price = Number.parseFloat(form.sellingPrice)
-  const total = !Number.isNaN(qty) && !Number.isNaN(price) && qty > 0 ? qty * price : null
+  const total = selectedProduct && !Number.isNaN(qty) && qty > 0 ? qty * selectedProduct.sellingPrice : null
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="add-sale-title">
@@ -359,49 +369,36 @@ function AddSaleModal({
               <select
                 required
                 value={form.productId}
-                onChange={(e) => onProductChange(e.target.value)}
+                onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
                 className={`${selectClass} w-full appearance-none pr-10`}
               >
                 {products.map((p) => (
-                  <option key={p.id} value={p.id}>
+                  <option key={p.id} value={String(p.id)}>
                     {p.name} ({p.sku})
                   </option>
                 ))}
               </select>
               <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             </div>
+            {selectedProduct ? (
+              <p className="mt-1 text-xs text-slate-500">
+                Catalog price: <span className="font-medium">{formatCurrency(selectedProduct.sellingPrice)}</span> · Stock: {selectedProduct.stock.toLocaleString()} units
+              </p>
+            ) : null}
           </FormField>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Quantity">
-              <input
-                required
-                type="number"
-                min="1"
-                step="1"
-                value={form.quantity}
-                onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
-                placeholder="e.g. 48"
-                className={`${fieldClass} tabular-nums`}
-              />
-            </FormField>
-            <FormField label="Selling price">
-              <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-slate-400">$</span>
-                <input
-                  required
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.sellingPrice}
-                  onChange={(e) => setForm((f) => ({ ...f, sellingPrice: e.target.value }))}
-                  placeholder="0.00"
-                  className={`${fieldClass} pl-7 tabular-nums`}
-                />
-              </div>
-              <p className="mt-1 text-xs text-slate-500">Pre-filled from catalog; editable per transaction.</p>
-            </FormField>
-          </div>
+          <FormField label="Quantity">
+            <input
+              required
+              type="number"
+              min="1"
+              step="1"
+              value={form.quantity}
+              onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+              placeholder="e.g. 48"
+              className={`${fieldClass} tabular-nums`}
+            />
+          </FormField>
 
           <FormField label="Sale date">
             <input
@@ -414,9 +411,9 @@ function AddSaleModal({
           </FormField>
 
           <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/60 px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-emerald-800/80">Total revenue</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-emerald-800/80">Estimated total revenue</p>
             <p className="mt-1 text-xl font-semibold tabular-nums text-emerald-800">{total !== null ? formatCurrency(total) : '—'}</p>
-            <p className="mt-0.5 text-xs text-emerald-700/70">Quantity × selling price</p>
+            <p className="mt-0.5 text-xs text-emerald-700/70">Quantity × catalog selling price</p>
           </div>
 
           <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">

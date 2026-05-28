@@ -6,10 +6,27 @@ export const DATE_RANGE_OPTIONS = [
 ] as const
 
 export type DateRangeValue = (typeof DATE_RANGE_OPTIONS)[number]['value']
+/**
+ * Accepts a string, Date object, or null/undefined.
+ * PostgreSQL date columns come back as Date objects via the pg driver,
+ * so we handle both types here.
+ */
+export function parseISODate(value: string | Date | null | undefined): Date {
+  if (!value) return new Date(NaN)
 
-export function parseISODate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  return new Date(y, (m ?? 1) - 1, d ?? 1)
+  // Already a Date object (pg driver returns dates this way)
+  if (value instanceof Date) return value
+
+  // ISO string like "2026-05-15" or "2026-05-15T00:00:00.000Z"
+  // Force UTC interpretation for plain date strings to avoid timezone shifts
+  const str = value.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    // "YYYY-MM-DD" — parse as UTC noon to avoid off-by-one from local timezone
+    return new Date(`${str}T12:00:00.000Z`)
+  }
+
+  const d = new Date(str)
+  return d
 }
 
 export function todayISO(): string {
@@ -19,9 +36,14 @@ export function todayISO(): string {
   return `${n.getFullYear()}-${m}-${d}`
 }
 
-export function isWithinDateRange(dateStr: string, range: DateRangeValue, now = new Date()): boolean {
+export function isWithinDateRange(
+  value: string | Date | null | undefined,
+  range: DateRangeValue,
+  now = new Date(),
+): boolean {
   if (range === 'all') return true
-  const date = parseISODate(dateStr)
+  const date = parseISODate(value)
+  if (Number.isNaN(date.getTime())) return false
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
   if (range === 'month') {
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
@@ -32,14 +54,17 @@ export function isWithinDateRange(dateStr: string, range: DateRangeValue, now = 
   return date >= start && date <= end
 }
 
-export function isThisMonth(dateStr: string, now = new Date()): boolean {
-  return isWithinDateRange(dateStr, 'month', now)
+export function isThisMonth(value: string | Date | null | undefined, now = new Date()): boolean {
+  return isWithinDateRange(value, 'month', now)
 }
 
-export function formatDisplayDate(dateStr: string): string {
+export function formatDisplayDate(value: string | Date | null | undefined): string {
+  const date = parseISODate(value)
+  if (Number.isNaN(date.getTime())) return '—'
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(parseISODate(dateStr))
+    timeZone: 'UTC', // use UTC so "2026-05-15T12:00:00Z" shows May 15, not May 14
+  }).format(date)
 }

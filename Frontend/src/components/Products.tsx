@@ -11,13 +11,18 @@ import {
 import {
   formatCurrency,
   getStockLevel,
-  INITIAL_PRODUCTS,
   PRODUCT_CATEGORIES,
   SORT_OPTIONS,
   STOCK_LEVEL_CLASS,
-  type Product,
 } from '../constants/products'
 import { btnPrimaryClass, btnSecondaryClass, fieldClass, inputClass, panelClass, selectClass } from '../constants/theme'
+import {
+  createProduct,
+  deleteProduct,
+  fetchProducts,
+  updateProduct,
+  type Product,
+} from '../services/product.service'
 import { AppLayout } from './layout/AppLayout'
 
 type ProductForm = {
@@ -37,13 +42,23 @@ const emptyForm: ProductForm = {
 }
 
 export default function Products() {
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS)
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All categories')
   const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]['value']>('name-asc')
   const [modalOpen, setModalOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
+
+  // Load products from API on mount
+  useEffect(() => {
+    fetchProducts()
+      .then(setProducts)
+      .catch((err) => setApiError(err.response?.data?.message || 'Failed to load products'))
+      .finally(() => setLoading(false))
+  }, [])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -101,17 +116,22 @@ export default function Products() {
     setForm(emptyForm)
   }
 
-  const handleDelete = (id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id))
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteProduct(id)
+      setProducts((prev) => prev.filter((p) => p.id !== id))
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete product')
+    }
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     const purchasePrice = Number.parseFloat(form.purchasePrice)
     const sellingPrice = Number.parseFloat(form.sellingPrice)
     if (!form.name.trim() || !form.sku.trim() || Number.isNaN(purchasePrice) || Number.isNaN(sellingPrice)) return
 
-    const payload: Omit<Product, 'id' | 'stock'> & { stock?: number } = {
+    const payload = {
       name: form.name.trim(),
       sku: form.sku.trim().toUpperCase(),
       category: form.category,
@@ -119,21 +139,18 @@ export default function Products() {
       sellingPrice,
     }
 
-    if (editingId) {
-      setProducts((prev) =>
-        prev.map((p) => (p.id === editingId ? { ...p, ...payload } : p)),
-      )
-    } else {
-      setProducts((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          stock: 0,
-          ...payload,
-        },
-      ])
+    try {
+      if (editingId !== null) {
+        const updated = await updateProduct(editingId, payload)
+        setProducts((prev) => prev.map((p) => (p.id === editingId ? updated : p)))
+      } else {
+        const created = await createProduct(payload)
+        setProducts((prev) => [...prev, created])
+      }
+      closeModal()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to save product')
     }
-    closeModal()
   }
 
   return (
@@ -154,6 +171,10 @@ export default function Products() {
           Add Product
         </button>
       </section>
+
+      {apiError ? (
+        <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{apiError}</p>
+      ) : null}
 
       <section className={`${panelClass} !p-4 sm:!p-5`}>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -193,8 +214,7 @@ export default function Products() {
             <h3 className="text-lg font-semibold text-white">Product catalog</h3>
             <p className="mt-0.5 text-sm text-white/60">
               {products.length} {products.length === 1 ? 'product' : 'products'} in your store
-            </p>
-          </div>
+            </p>          </div>
           <button
             type="button"
             className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:hidden"
@@ -206,7 +226,9 @@ export default function Products() {
         </div>
 
         <article className="overflow-hidden rounded-xl bg-white shadow-[0_8px_30px_-8px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/60">
-          {products.length === 0 ? (
+          {loading ? (
+            <p className="px-5 py-14 text-center text-sm text-slate-500">Loading products…</p>
+          ) : products.length === 0 ? (
             <EmptyState onAdd={openAddModal} />
           ) : filtered.length === 0 ? (
             <p className="px-5 py-14 text-center text-sm text-slate-500">No products match your search or filters.</p>
@@ -277,7 +299,7 @@ export default function Products() {
         <AddProductModal
           form={form}
           setForm={setForm}
-          editing={!!editingId}
+          editing={editingId !== null}
           onClose={closeModal}
           onSubmit={handleSubmit}
         />
