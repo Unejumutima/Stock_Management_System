@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import loginBackgroundImg from '../assets/login-background.jpg'
 import logoImg from '../assets/logo.png'
@@ -101,13 +101,18 @@ export default function Login() {
   const { login, loginWithTokens } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  // Prevent the OAuth callback from firing more than once
+  const handledRef = useRef(false)
 
   useEffect(() => {
+    if (handledRef.current) return
+
     const accessToken = searchParams.get('accessToken')
     const refreshToken = searchParams.get('refreshToken')
     const error = searchParams.get('error')
 
     if (error) {
+      handledRef.current = true
       setErrorMsg(
         error === 'not_approved'
           ? 'Your account has not been approved by an administrator.'
@@ -115,16 +120,17 @@ export default function Login() {
             ? 'Google login failed. Please try again.'
             : 'Login failed. Please try again.',
       )
-      // Clean the URL
-      navigate('/login', { replace: true })
+      // Remove the query params from the URL without re-mounting the component
+      window.history.replaceState({}, '', '/login')
     } else if (accessToken && refreshToken) {
-      // Google OAuth callback — set tokens and fetch user profile
+      handledRef.current = true
       setSubmitting(true)
       loginWithTokens(accessToken, refreshToken)
         .then(() => navigate('/', { replace: true }))
         .catch(() => {
           setErrorMsg('Google login failed. Please try again.')
           setSubmitting(false)
+          window.history.replaceState({}, '', '/login')
         })
     }
   }, [searchParams])
