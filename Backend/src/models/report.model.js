@@ -22,6 +22,8 @@ export function resolvePeriod({ year, month, from, to }) {
   return { ...range, label, year: y, month: m }
 }
 
+// ─── EXISTING QUERIES ────────────────────────────────────────────────────────
+
 export async function getMonthlySummary({ from, to }) {
   const sales = await pool.query(
     `SELECT
@@ -125,4 +127,130 @@ export async function getProfitTrend(months = 6) {
     expenses: Number(r.expenses),
     profit: Number(r.revenue) - Number(r.expenses),
   }))
+}
+
+// ─── NEW QUERIES ──────────────────────────────────────────────────────────────
+
+/** Full sales detail for the period */
+export async function getSalesDetail({ from, to }) {
+  const { rows } = await pool.query(
+    `SELECT
+       sa.id,
+       p.name AS product_name,
+       p.sku,
+       p.category,
+       sa.quantity,
+       p.selling_price,
+       (sa.quantity * p.selling_price) AS total_revenue,
+       sa.sale_date
+     FROM sales sa
+     JOIN products p ON p.id = sa.product_id
+     WHERE sa.sale_date BETWEEN $1 AND $2
+     ORDER BY sa.sale_date DESC`,
+    [from, to],
+  )
+  return rows
+}
+
+/** Full purchase detail for the period */
+export async function getPurchasesDetail({ from, to }) {
+  const { rows } = await pool.query(
+    `SELECT
+       pu.id,
+       p.name AS product_name,
+       p.sku,
+       p.category,
+       pu.quantity,
+       pu.price_per_unit,
+       (pu.quantity * pu.price_per_unit) AS total_cost,
+       pu.purchase_date
+     FROM purchases pu
+     JOIN products p ON p.id = pu.product_id
+     WHERE pu.purchase_date BETWEEN $1 AND $2
+     ORDER BY pu.purchase_date DESC`,
+    [from, to],
+  )
+  return rows
+}
+
+/** Full expense detail for the period */
+export async function getExpensesDetail({ from, to }) {
+  const { rows } = await pool.query(
+    `SELECT id, category, amount, expense_date, notes
+     FROM expenses
+     WHERE expense_date BETWEEN $1 AND $2
+     ORDER BY expense_date DESC`,
+    [from, to],
+  )
+  return rows
+}
+
+/** Inventory snapshot — all products with current stock, value, and status */
+export async function getInventorySnapshot() {
+  const { rows } = await pool.query(
+    `SELECT
+       p.id,
+       p.name,
+       p.sku,
+       p.category,
+       p.purchase_price,
+       p.selling_price,
+       COALESCE((SELECT SUM(pu.quantity) FROM purchases pu WHERE pu.product_id = p.id), 0)
+         - COALESCE((SELECT SUM(sa.quantity) FROM sales sa WHERE sa.product_id = p.id), 0) AS stock,
+       (
+         COALESCE((SELECT SUM(pu.quantity) FROM purchases pu WHERE pu.product_id = p.id), 0)
+         - COALESCE((SELECT SUM(sa.quantity) FROM sales sa WHERE sa.product_id = p.id), 0)
+       ) * p.purchase_price AS inventory_value,
+       CASE
+         WHEN (
+           COALESCE((SELECT SUM(pu.quantity) FROM purchases pu WHERE pu.product_id = p.id), 0)
+           - COALESCE((SELECT SUM(sa.quantity) FROM sales sa WHERE sa.product_id = p.id), 0)
+         ) <= 0 THEN 'Out of Stock'
+         WHEN (
+           COALESCE((SELECT SUM(pu.quantity) FROM purchases pu WHERE pu.product_id = p.id), 0)
+           - COALESCE((SELECT SUM(sa.quantity) FROM sales sa WHERE sa.product_id = p.id), 0)
+         ) < 75 THEN 'Low Stock'
+         ELSE 'In Stock'
+       END AS status
+     FROM products p
+     ORDER BY stock ASC, p.name ASC`,
+  )
+  return rows
+}
+
+/**
+ * User activity for the period:
+ * - New users registered
+ * - Login count per user (via refresh_tokens created in period)
+ */
+export async function getUserActivity({ from, to }) {
+  // New users added in this period
+  const newUsers = await pool.query(
+    `SELECT id, email, full_name, role, created_at
+     FROM users
+     WHERE created_at::date BETWEEN $1 AND $2
+     ORDER BY created_at DESC`,
+    [from, to],
+  )
+
+  // Login sessions per user in this period (each login creates a refresh token)
+  const loginActivity = await pool.query(
+    `SELECT
+       u.email,
+       u.full_name,
+       u.role,
+       COUNT(rt.id)::int AS login_count,
+       MAX(rt.created_at) AS last_login
+     FROM refresh_tokens rt
+     JOIN users u ON u.id = rt.user_id
+     WHERE rt.created_at::date BETWEEN $1 AND $2
+     GROUP BY u.id, u.email, u.full_name, u.role
+     ORDER BY login_count DESC`,
+    [from, to],
+  )
+
+  return {
+    newUsers: newUsers.rows,
+    loginActivity: loginActivity.rows,
+  }
 }
