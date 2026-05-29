@@ -84,6 +84,14 @@ export default function Sales() {
     setForm(emptyForm(products))
     setModalOpen(true)
   }
+
+  const closeModal = () => {
+    setModalOpen(false)
+    setForm(emptyForm(products))
+  }
+
+  const handleDelete = async (id: number) => {
+    const sale = sales.find((s) => s.id === id)
     try {
       await deleteSale(id)
       setSales((prev) => prev.filter((s) => s.id !== id))
@@ -122,145 +130,147 @@ export default function Sales() {
     ...products.map((p) => ({ value: String(p.id), label: p.name })),
   ]
 
-  return (
-    <AppLayout
-      title="Sales"
-      subtitle="Track product sales and revenue."
-      searchPlaceholder="Search products, sales, expenses..."
-    >
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+
+return (
+  <AppLayout
+    title="Sales"
+    subtitle="Track product sales and revenue."
+    searchPlaceholder="Search products, sales, expenses..."
+  >
+    <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h2 className="text-2xl font-semibold tracking-tight text-[#0B2735]">Sales</h2>
+        <p className="mt-1 max-w-xl text-sm text-slate-500">
+          Track product sales, revenue, and stock reductions across your store.
+        </p>
+      </div>
+      {isAdmin ? (
+        <button type="button" className={btnPrimaryClass} onClick={openAddModal}>
+          <PlusIcon className="size-4" />
+          Add Sale
+        </button>
+      ) : null}
+    </section>
+
+    {apiError ? (
+      <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{apiError}</p>
+    ) : null}
+
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <KpiCard compact title="Total sales" value={String(stats.count)} sub="Recorded transactions" icon={<KpiIconTrend />} />
+      <KpiCard compact title="Total revenue" value={formatCurrency(stats.totalRevenue)} sub="Lifetime revenue" icon={<KpiIconDollar />} />
+      <KpiCard compact title="Units sold" value={stats.totalUnits.toLocaleString()} sub="Across all time" icon={<KpiIconBoxes />} />
+      <KpiCard compact title="This month revenue" value={formatCurrency(stats.monthRevenue)} sub={new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })} icon={<KpiIconCalendar />} />
+    </section>
+
+    <section className={`${panelClass} !p-4 sm:!p-5`}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <label className="relative block min-w-0 flex-1">
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
+            <SearchIcon className="size-[1.125rem]" />
+          </span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search sales..."
+            className={inputClass}
+          />
+        </label>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <FilterSelect label="Product" value={productFilter} onChange={setProductFilter} options={productOptions} minWidth="min-w-[200px]" />
+          <FilterSelect
+            label="Date range"
+            value={dateRange}
+            onChange={(v) => setDateRange(v as DateRangeValue)}
+            options={DATE_RANGE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            minWidth="min-w-[160px]"
+          />
+          <FilterSelect
+            label="Category"
+            value={category}
+            onChange={setCategory}
+            options={PRODUCT_CATEGORIES.map((c) => ({ value: c, label: c }))}
+          />
+        </div>
+      </div>
+    </section>
+
+    <section className="overflow-hidden rounded-2xl bg-[#0B2735] p-5 shadow-[0_18px_48px_-12px_rgba(11,39,53,0.45)] ring-1 ring-[#0B2735]/80 sm:p-6">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-[#0B2735]">Sales</h2>
-          <p className="mt-1 max-w-xl text-sm text-slate-500">
-            Track product sales, revenue, and stock reductions across your store.
+          <h3 className="text-lg font-semibold text-white">Sales history</h3>
+          <p className="mt-0.5 text-sm text-white/60">
+            {filtered.length} {filtered.length === 1 ? 'transaction' : 'transactions'} shown
           </p>
         </div>
         {isAdmin ? (
-          <button type="button" className={btnPrimaryClass} onClick={openAddModal}>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:hidden"
+            onClick={openAddModal}
+          >
             <PlusIcon className="size-4" />
             Add Sale
           </button>
         ) : null}
-      </section>
+      </div>
 
-      {apiError ? (
-        <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{apiError}</p>
-      ) : null}
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard compact title="Total sales" value={String(stats.count)} sub="Recorded transactions" icon={<KpiIconTrend />} />
-        <KpiCard compact title="Total revenue" value={formatCurrency(stats.totalRevenue)} sub="Lifetime revenue" icon={<KpiIconDollar />} />
-        <KpiCard compact title="Units sold" value={stats.totalUnits.toLocaleString()} sub="Across all time" icon={<KpiIconBoxes />} />
-        <KpiCard compact title="This month revenue" value={formatCurrency(stats.monthRevenue)} sub={new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })} icon={<KpiIconCalendar />} />
-      </section>
-
-      <section className={`${panelClass} !p-4 sm:!p-5`}>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <label className="relative block min-w-0 flex-1">
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
-              <SearchIcon className="size-[1.125rem]" />
-            </span>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search sales..."
-              className={inputClass}
-            />
-          </label>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <FilterSelect label="Product" value={productFilter} onChange={setProductFilter} options={productOptions} minWidth="min-w-[200px]" />
-            <FilterSelect
-              label="Date range"
-              value={dateRange}
-              onChange={(v) => setDateRange(v as DateRangeValue)}
-              options={DATE_RANGE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-              minWidth="min-w-[160px]"
-            />
-            <FilterSelect
-              label="Category"
-              value={category}
-              onChange={setCategory}
-              options={PRODUCT_CATEGORIES.map((c) => ({ value: c, label: c }))}
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="overflow-hidden rounded-2xl bg-[#0B2735] p-5 shadow-[0_18px_48px_-12px_rgba(11,39,53,0.45)] ring-1 ring-[#0B2735]/80 sm:p-6">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-white">Sales history</h3>
-            <p className="mt-0.5 text-sm text-white/60">
-              {filtered.length} {filtered.length === 1 ? 'transaction' : 'transactions'} shown
-            </p>
-          </div>
-          {isAdmin ? (
-            <button
-              type="button"
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15 sm:hidden"
-              onClick={openAddModal}
-            >
-              <PlusIcon className="size-4" />
-              Add Sale
-            </button>
-          ) : null}
-        </div>
-
-        <article className="overflow-hidden rounded-xl bg-white shadow-[0_8px_30px_-8px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/60">
-          {loading ? (
-            <p className="px-5 py-14 text-center text-sm text-slate-500">Loading sales…</p>
-          ) : sales.length === 0 ? (
-            <EmptyState onAdd={openAddModal} />
-          ) : filtered.length === 0 ? (
-            <p className="px-5 py-14 text-center text-sm text-slate-500">No sales match your search or filters.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[960px] border-collapse text-left text-sm">
-                <thead className="sticky top-0 z-10 border-b border-slate-200/80 bg-slate-50/95 backdrop-blur-sm">
-                  <tr>
-                    <th className="w-[26%] px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Product Name</th>
-                    <th className="w-[11%] px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">SKU</th>
-                    <th className="w-[11%] px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Quantity</th>
-                    <th className="w-[12%] px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Selling Price</th>
-                    <th className="w-[12%] px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Total Revenue</th>
-                    <th className="w-[14%] px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Sale Date</th>
-                    <th className="w-[8%] px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
+      <article className="overflow-hidden rounded-xl bg-white shadow-[0_8px_30px_-8px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/60">
+        {loading ? (
+          <p className="px-5 py-14 text-center text-sm text-slate-500">Loading sales…</p>
+        ) : sales.length === 0 ? (
+          <EmptyState onAdd={openAddModal} />
+        ) : filtered.length === 0 ? (
+          <p className="px-5 py-14 text-center text-sm text-slate-500">No sales match your search or filters.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px] border-collapse text-left text-sm">
+              <thead className="sticky top-0 z-10 border-b border-slate-200/80 bg-slate-50/95 backdrop-blur-sm">
+                <tr>
+                  <th className="w-[26%] px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Product Name</th>
+                  <th className="w-[11%] px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">SKU</th>
+                  <th className="w-[11%] px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Quantity</th>
+                  <th className="w-[12%] px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Selling Price</th>
+                  <th className="w-[12%] px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Total Revenue</th>
+                  <th className="w-[14%] px-4 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Sale Date</th>
+                  <th className="w-[8%] px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((row) => (
+                  <tr key={row.id} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/80">
+                    <td className="px-5 py-4 font-medium text-slate-800">{row.productName}</td>
+                    <td className="px-4 py-4 font-mono text-xs text-slate-500">{row.sku}</td>
+                    <td className="px-4 py-4 tabular-nums text-slate-600">{row.quantity.toLocaleString()}</td>
+                    <td className="px-4 py-4 tabular-nums text-slate-600">{formatCurrency(row.sellingPrice)}</td>
+                    <td className="px-4 py-4 tabular-nums font-semibold text-emerald-700">{formatCurrency(row.totalRevenue)}</td>
+                    <td className="px-4 py-4 text-slate-600">{formatDisplayDate(row.saleDate)}</td>
+                    <td className="px-4 py-4">
+                      {isAdmin ? (
+                        <div className="flex items-center justify-end">
+                          <ActionButton label={`Delete sale for ${row.productName}`} variant="danger" onClick={() => handleDelete(row.id)}>
+                            <TrashIcon className="size-4" />
+                          </ActionButton>
+                        </div>
+                      ) : null}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((row) => (
-                    <tr key={row.id} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/80">
-                      <td className="px-5 py-4 font-medium text-slate-800">{row.productName}</td>
-                      <td className="px-4 py-4 font-mono text-xs text-slate-500">{row.sku}</td>
-                      <td className="px-4 py-4 tabular-nums text-slate-600">{row.quantity.toLocaleString()}</td>
-                      <td className="px-4 py-4 tabular-nums text-slate-600">{formatCurrency(row.sellingPrice)}</td>
-                      <td className="px-4 py-4 tabular-nums font-semibold text-emerald-700">{formatCurrency(row.totalRevenue)}</td>
-                      <td className="px-4 py-4 text-slate-600">{formatDisplayDate(row.saleDate)}</td>
-                      <td className="px-4 py-4">
-                        {isAdmin ? (
-                          <div className="flex items-center justify-end">
-                            <ActionButton label={`Delete sale for ${row.productName}`} variant="danger" onClick={() => handleDelete(row.id)}>
-                              <TrashIcon className="size-4" />
-                            </ActionButton>
-                          </div>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </article>
-      </section>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </article>
+    </section>
 
-      {modalOpen ? (
-        <AddSaleModal form={form} setForm={setForm} products={products} onClose={closeModal} onSubmit={handleSubmit} />
-      ) : null}
-    </AppLayout>
-  )
+    {modalOpen ? (
+      <AddSaleModal form={form} setForm={setForm} products={products} onClose={closeModal} onSubmit={handleSubmit} />
+    ) : null}
+  </AppLayout>
+)
 }
+
 
 function FilterSelect({
   label,
