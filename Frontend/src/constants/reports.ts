@@ -19,7 +19,17 @@ export const REPORT_MONTHS = [
   { value: '12', label: 'December' },
 ] as const
 
-export const REPORT_YEARS = ['2025', '2026'] as const
+/** Dynamically generates years from 2024 to the current year + 1 */
+function buildReportYears(): string[] {
+  const current = new Date().getFullYear()
+  const years: string[] = []
+  for (let y = 2024; y <= current + 1; y++) {
+    years.push(String(y))
+  }
+  return years
+}
+
+export const REPORT_YEARS: string[] = buildReportYears()
 
 export type ReportPeriod = {
   month: number

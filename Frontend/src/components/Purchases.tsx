@@ -171,7 +171,7 @@ export default function Purchases() {
         <KpiCard compact title="Total purchases" value={String(stats.count)} sub="Recorded transactions" icon={<KpiIconReceipt />} />
         <KpiCard compact title="Total units purchased" value={stats.totalUnits.toLocaleString()} sub="Across all time" icon={<KpiIconBoxes />} />
         <KpiCard compact title="Total purchase cost" value={formatCurrency(stats.totalCost)} sub="Lifetime spend" icon={<KpiIconDollar />} />
-        <KpiCard compact title="This month purchases" value={formatCurrency(stats.monthCost)} sub="May 2026" icon={<KpiIconCalendar />} />
+        <KpiCard compact title="This month purchases" value={formatCurrency(stats.monthCost)} sub={new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })} icon={<KpiIconCalendar />} />
       </section>
 
       <section className={`${panelClass} !p-4 sm:!p-5`}>
@@ -397,21 +397,27 @@ function AddPurchaseModal({
 
         <form onSubmit={onSubmit} className="space-y-4 px-6 py-5">
           <FormField label="Product">
-            <div className="relative">
-              <select
-                required
-                value={form.productId}
-                onChange={(e) => onProductChange(e.target.value)}
-                className={`${selectClass} w-full appearance-none pr-10`}
-              >
-                {products.map((p) => (
-                  <option key={p.id} value={String(p.id)}>
-                    {p.name} ({p.sku})
-                  </option>
-                ))}
-              </select>
-              <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            </div>
+            {products.length === 0 ? (
+              <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-amber-200">
+                No products in catalog yet. Add products first before recording a purchase.
+              </p>
+            ) : (
+              <div className="relative">
+                <select
+                  required
+                  value={form.productId}
+                  onChange={(e) => onProductChange(e.target.value)}
+                  className={`${selectClass} w-full appearance-none pr-10`}
+                >
+                  {products.map((p) => (
+                    <option key={p.id} value={String(p.id)}>
+                      {p.name} ({p.sku})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              </div>
+            )}
           </FormField>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -464,7 +470,7 @@ function AddPurchaseModal({
             <button type="button" className={btnSecondaryClass} onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className={btnPrimaryClass}>
+            <button type="submit" className={btnPrimaryClass} disabled={products.length === 0}>
               Save purchase
             </button>
           </div>

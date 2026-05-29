@@ -228,6 +228,15 @@ function InventoryValueChartPlaceholder({ monthlyOverview }: { monthlyOverview: 
   const h = 220
   const pad = 24
 
+  if (monthlyOverview.length === 0) {
+    return (
+      <div className="flex h-[280px] flex-col items-center justify-center text-center">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Revenue trend</p>
+        <p className="mt-4 text-sm text-slate-400">No revenue data yet. Record your first sale to see the trend.</p>
+      </div>
+    )
+  }
+
   // Build SVG path from real monthly revenue data
   const revenues = monthlyOverview.map((m) => m.revenue)
   const maxRev = Math.max(...revenues, 1)
@@ -344,6 +353,15 @@ function ChartBody({ w, h, pad, path, labels }: { w: number; h: number; pad: num
 
 function MonthlyPerformancePlaceholder({ monthlyOverview, maxBar }: { monthlyOverview: DashboardData['monthlyOverview']; maxBar: number }) {
   const months = monthlyOverview.map((m) => m.label)
+
+  if (monthlyOverview.length === 0) {
+    return (
+      <div className="flex h-[300px] flex-col items-center justify-center text-center">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Monthly financial performance</p>
+        <p className="mt-4 text-sm text-slate-400">No transaction data yet. Start recording sales, purchases, and expenses to see performance trends.</p>
+      </div>
+    )
+  }
 
   return (
     <div>

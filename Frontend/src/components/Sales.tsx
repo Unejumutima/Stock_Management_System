@@ -84,14 +84,6 @@ export default function Sales() {
     setForm(emptyForm(products))
     setModalOpen(true)
   }
-
-  const closeModal = () => {
-    setModalOpen(false)
-    setForm(emptyForm(products))
-  }
-
-  const handleDelete = async (id: number) => {
-    const sale = sales.find((s) => s.id === id)
     try {
       await deleteSale(id)
       setSales((prev) => prev.filter((s) => s.id !== id))
@@ -159,7 +151,7 @@ export default function Sales() {
         <KpiCard compact title="Total sales" value={String(stats.count)} sub="Recorded transactions" icon={<KpiIconTrend />} />
         <KpiCard compact title="Total revenue" value={formatCurrency(stats.totalRevenue)} sub="Lifetime revenue" icon={<KpiIconDollar />} />
         <KpiCard compact title="Units sold" value={stats.totalUnits.toLocaleString()} sub="Across all time" icon={<KpiIconBoxes />} />
-        <KpiCard compact title="This month revenue" value={formatCurrency(stats.monthRevenue)} sub="May 2026" icon={<KpiIconCalendar />} />
+        <KpiCard compact title="This month revenue" value={formatCurrency(stats.monthRevenue)} sub={new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })} icon={<KpiIconCalendar />} />
       </section>
 
       <section className={`${panelClass} !p-4 sm:!p-5`}>
@@ -384,21 +376,27 @@ function AddSaleModal({
 
         <form onSubmit={onSubmit} className="space-y-4 px-6 py-5">
           <FormField label="Product">
-            <div className="relative">
-              <select
-                required
-                value={form.productId}
-                onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
-                className={`${selectClass} w-full appearance-none pr-10`}
-              >
-                {products.map((p) => (
-                  <option key={p.id} value={String(p.id)}>
-                    {p.name} ({p.sku})
-                  </option>
-                ))}
-              </select>
-              <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            </div>
+            {products.length === 0 ? (
+              <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-amber-200">
+                No products in catalog yet. Add products first before recording a sale.
+              </p>
+            ) : (
+              <div className="relative">
+                <select
+                  required
+                  value={form.productId}
+                  onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
+                  className={`${selectClass} w-full appearance-none pr-10`}
+                >
+                  {products.map((p) => (
+                    <option key={p.id} value={String(p.id)}>
+                      {p.name} ({p.sku})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              </div>
+            )}
             {selectedProduct ? (
               <p className="mt-1 text-xs text-slate-500">
                 Catalog price: <span className="font-medium">{formatCurrency(selectedProduct.sellingPrice)}</span> · Stock: {selectedProduct.stock.toLocaleString()} units
@@ -439,7 +437,7 @@ function AddSaleModal({
             <button type="button" className={btnSecondaryClass} onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className={btnPrimaryClass}>
+            <button type="submit" className={btnPrimaryClass} disabled={products.length === 0}>
               Save sale
             </button>
           </div>

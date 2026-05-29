@@ -228,6 +228,20 @@ function BarMetric({ label, value, pct, color }: { label: string; value: string;
 
 function ProfitTrendChart({ points }: { points: { label: string; profit: number }[] }) {
   const w = 360; const h = 180; const pad = 20
+
+  if (points.length === 0) {
+    return (
+      <article className={panelClass}>
+        <div className="mb-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Profit trend</p>
+          <p className="mt-1 text-lg font-semibold text-[#0B2735]">Net profit (6 months)</p>
+        </div>
+        <div className="flex h-[220px] items-center justify-center rounded-xl bg-gradient-to-b from-slate-50/80 to-white">
+          <p className="text-sm text-slate-400">No data available for this period.</p>
+        </div>
+      </article>
+    )
+  }
   const profits = points.map((p) => p.profit)
   const minP = Math.min(...profits, 0)
   const maxP = Math.max(...profits, 1)
