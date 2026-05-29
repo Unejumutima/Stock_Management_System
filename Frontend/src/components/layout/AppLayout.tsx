@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { useStockAlerts } from '../../hooks/useStockAlerts'
 import { Sidebar } from './Sidebar'
 import { TopNavbar } from './TopNavbar'
 
@@ -11,6 +12,9 @@ type AppLayoutProps = {
 
 export function AppLayout({ title, subtitle, searchPlaceholder, children }: AppLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  // Polls inventory every 5 min and pushes low/out-of-stock alerts for admins
+  useStockAlerts()
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] text-slate-800 antialiased">

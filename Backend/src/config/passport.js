@@ -33,7 +33,7 @@ passport.use(
         // 1. Check if user already exists by Google ID
         let user = await userModel.getUserByGoogleId(profile.id)
         if (user) {
-          if (!user.is_approved) {
+          if (!user.isApproved) {
             return done(null, false, { message: 'not_approved' })
           }
           return done(null, user)
@@ -42,7 +42,7 @@ passport.use(
         // 2. Check if user exists by email (admin pre-registered them)
         user = await userModel.getUserByEmail(email)
         if (user) {
-          if (!user.is_approved) {
+          if (!user.isApproved) {
             return done(null, false, { message: 'not_approved' })
           }
           // Link their Google ID to the existing account

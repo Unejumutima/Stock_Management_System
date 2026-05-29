@@ -21,6 +21,7 @@ import {
 } from '../services/user.service'
 import { AppLayout } from './layout/AppLayout'
 import { useAuth } from '../context/AuthContext'
+import { useNotifications } from '../context/NotificationContext'
 
 type UserForm = {
   email: string
@@ -38,6 +39,7 @@ const emptyForm: UserForm = {
 
 export default function UserManagement() {
   const { user: currentUser } = useAuth()
+  const { push } = useNotifications()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
@@ -94,21 +96,34 @@ export default function UserManagement() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return
+    const target = users.find((u) => u.id === id)
+    if (!confirm(`Are you sure you want to delete ${target?.fullName ?? 'this user'}?`)) return
     try {
       await deleteUser(id)
       setUsers((prev) => prev.filter((u) => u.id !== id))
+      push({ type: 'info', category: 'new_user', title: 'User deleted', message: `"${target?.fullName ?? 'User'}" was removed from the system.` })
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete user')
+      const msg = err.response?.data?.message || 'Failed to delete user'
+      push({ type: 'error', category: 'action_error', title: 'Delete failed', message: msg })
+      alert(msg)
     }
   }
 
   const handleToggleApproval = async (id: string, currentStatus: boolean) => {
+    const target = users.find((u) => u.id === id)
     try {
       const updated = await updateUserApproval(id, !currentStatus)
       setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)))
+      push({
+        type: 'success',
+        category: 'new_user',
+        title: currentStatus ? 'User suspended' : 'User approved',
+        message: `"${target?.fullName ?? 'User'}" is now ${!currentStatus ? 'approved and can log in' : 'pending and cannot log in'}.`,
+      })
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update user approval')
+      const msg = err.response?.data?.message || 'Failed to update user approval'
+      push({ type: 'error', category: 'action_error', title: 'Update failed', message: msg })
+      alert(msg)
     }
   }
 
@@ -127,13 +142,22 @@ export default function UserManagement() {
       if (editingId !== null) {
         const updated = await updateUser(editingId, payload)
         setUsers((prev) => prev.map((u) => (u.id === editingId ? updated : u)))
+        push({ type: 'success', category: 'new_user', title: 'User updated', message: `"${payload.fullName}" details were updated.` })
       } else {
         const created = await createUser(payload)
         setUsers((prev) => [...prev, created])
+        push({
+          type: 'success',
+          category: 'new_user',
+          title: 'New user added',
+          message: `"${payload.fullName}" (${payload.role}) was added${payload.isApproved ? ' and approved' : ' — pending approval'}.`,
+        })
       }
       closeModal()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to save user')
+      const msg = err.response?.data?.message || 'Failed to save user'
+      push({ type: 'error', category: 'action_error', title: 'Save failed', message: msg })
+      alert(msg)
     }
   }
 

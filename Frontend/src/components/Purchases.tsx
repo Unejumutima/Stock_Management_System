@@ -12,6 +12,7 @@ import {
 } from '../constants/transactions'
 import { fetchProducts, type Product } from '../services/product.service'
 import { createPurchase, deletePurchase, fetchPurchases, type Purchase } from '../services/purchase.service'
+import { useNotifications } from '../context/NotificationContext'
 import { AppLayout } from './layout/AppLayout'
 import { KpiCard } from './ui/KpiCard'
 import { useAuth } from '../context/AuthContext'
@@ -33,6 +34,7 @@ const emptyForm = (products: Product[]): PurchaseForm => ({
 export default function Purchases() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const { push } = useNotifications()
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -90,11 +92,15 @@ export default function Purchases() {
   }
 
   const handleDelete = async (id: number) => {
+    const purchase = purchases.find((p) => p.id === id)
     try {
       await deletePurchase(id)
       setPurchases((prev) => prev.filter((p) => p.id !== id))
+      push({ type: 'info', category: 'product_deleted', title: 'Purchase deleted', message: `Purchase of "${purchase?.productName ?? 'product'}" was removed.` })
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete purchase')
+      const msg = err.response?.data?.message || 'Failed to delete purchase'
+      push({ type: 'error', category: 'action_error', title: 'Delete failed', message: msg })
+      alert(msg)
     }
   }
 
@@ -113,6 +119,7 @@ export default function Purchases() {
     const pricePerUnit = Number.parseFloat(form.pricePerUnit)
     if (!form.productId || !form.purchaseDate || Number.isNaN(quantity) || quantity <= 0 || Number.isNaN(pricePerUnit)) return
 
+    const product = products.find((p) => String(p.id) === form.productId)
     try {
       const created = await createPurchase({
         productId: Number(form.productId),
@@ -121,9 +128,12 @@ export default function Purchases() {
         purchaseDate: form.purchaseDate,
       })
       setPurchases((prev) => [created, ...prev])
+      push({ type: 'success', category: 'product_updated', title: 'Purchase recorded', message: `${quantity} unit${quantity > 1 ? 's' : ''} of "${product?.name ?? 'product'}" purchased.` })
       closeModal()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create purchase')
+      const msg = err.response?.data?.message || 'Failed to create purchase'
+      push({ type: 'error', category: 'action_error', title: 'Purchase failed', message: msg })
+      alert(msg)
     }
   }
 

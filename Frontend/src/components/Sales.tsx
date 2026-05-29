@@ -10,11 +10,12 @@ import {
   todayISO,
   type DateRangeValue,
 } from '../constants/transactions'
+import { useAuth } from '../context/AuthContext'
+import { useNotifications } from '../context/NotificationContext'
 import { fetchProducts, type Product } from '../services/product.service'
 import { createSale, deleteSale, fetchSales, type Sale } from '../services/sale.service'
 import { AppLayout } from './layout/AppLayout'
 import { KpiCard } from './ui/KpiCard'
-import { useAuth } from '../context/AuthContext'
 
 type SaleForm = {
   productId: string
@@ -31,6 +32,7 @@ const emptyForm = (products: Product[]): SaleForm => ({
 export default function Sales() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const { push } = useNotifications()
   const [sales, setSales] = useState<Sale[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -89,11 +91,15 @@ export default function Sales() {
   }
 
   const handleDelete = async (id: number) => {
+    const sale = sales.find((s) => s.id === id)
     try {
       await deleteSale(id)
       setSales((prev) => prev.filter((s) => s.id !== id))
+      push({ type: 'info', category: 'product_deleted', title: 'Sale deleted', message: `Sale of "${sale?.productName ?? 'product'}" was removed.` })
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete sale')
+      const msg = err.response?.data?.message || 'Failed to delete sale'
+      push({ type: 'error', category: 'action_error', title: 'Delete failed', message: msg })
+      alert(msg)
     }
   }
 
@@ -102,6 +108,7 @@ export default function Sales() {
     const quantity = Number.parseInt(form.quantity, 10)
     if (!form.productId || !form.saleDate || Number.isNaN(quantity) || quantity <= 0) return
 
+    const product = products.find((p) => String(p.id) === form.productId)
     try {
       const created = await createSale({
         productId: Number(form.productId),
@@ -109,9 +116,12 @@ export default function Sales() {
         saleDate: form.saleDate,
       })
       setSales((prev) => [created, ...prev])
+      push({ type: 'success', category: 'product_updated', title: 'Sale recorded', message: `${quantity} unit${quantity > 1 ? 's' : ''} of "${product?.name ?? 'product'}" sold.` })
       closeModal()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to create sale')
+      const msg = err.response?.data?.message || 'Failed to create sale'
+      push({ type: 'error', category: 'action_error', title: 'Sale failed', message: msg })
+      alert(msg)
     }
   }
 

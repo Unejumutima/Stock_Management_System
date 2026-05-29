@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  BellIcon,
-  CogIcon,
-  MenuIcon,
-  SearchIcon,
-} from '../../constants/icons'
+import { BellIcon, CogIcon, MenuIcon, SearchIcon, XIcon } from '../../constants/icons'
 import { DEFAULT_SEARCH_PLACEHOLDER } from '../../constants/navigation'
 import { inputClass } from '../../constants/theme'
 import { useAuth } from '../../context/AuthContext'
+import { useNotifications, type Notification } from '../../context/NotificationContext'
 
 type TopNavbarProps = {
   title: string
@@ -40,15 +36,6 @@ const SETTINGS_ITEMS = [
     ),
   },
   {
-    label: 'Notifications',
-    description: 'Configure alert preferences',
-    icon: (
-      <svg className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24" aria-hidden>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-      </svg>
-    ),
-  },
-  {
     label: 'Data & exports',
     description: 'Manage backups and report exports',
     icon: (
@@ -69,6 +56,42 @@ const SETTINGS_ITEMS = [
   },
 ]
 
+// Icon per notification type
+function NotifIcon({ type }: { type: Notification['type'] }) {
+  const base = 'size-4 shrink-0'
+  if (type === 'success') return (
+    <svg className={`${base} text-emerald-600`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    </svg>
+  )
+  if (type === 'warning') return (
+    <svg className={`${base} text-amber-500`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+    </svg>
+  )
+  if (type === 'error') return (
+    <svg className={`${base} text-rose-600`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+    </svg>
+  )
+  // info
+  return (
+    <svg className={`${base} text-blue-500`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+    </svg>
+  )
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
 export function TopNavbar({
   title,
   subtitle,
@@ -78,26 +101,27 @@ export function TopNavbar({
 }: TopNavbarProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const settingsRef = useRef<HTMLDivElement>(null)
+  const { notifications, unreadCount, markRead, markAllRead, remove, clearAll } = useNotifications()
 
-  // Close settings panel when clicking outside
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [bellOpen, setBellOpen] = useState(false)
+  const settingsRef = useRef<HTMLDivElement>(null)
+  const bellRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdowns on outside click
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
-        setSettingsOpen(false)
-      }
+    function handleClick(e: MouseEvent) {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) setSettingsOpen(false)
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setBellOpen(false)
     }
-    if (settingsOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [settingsOpen])
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   // Close on Escape
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setSettingsOpen(false)
+      if (e.key === 'Escape') { setSettingsOpen(false); setBellOpen(false) }
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
@@ -108,6 +132,14 @@ export function TopNavbar({
     : '?'
   const displayName = user?.fullName ?? 'User'
   const displayRole = user?.role ?? ''
+
+  // Filter notifications relevant to this user's role
+  const ADMIN_ONLY_CATEGORIES = new Set(['low_stock', 'out_of_stock', 'new_user', 'unauthorized_attempt', 'report_ready'])
+  const visibleNotifications = notifications.filter((n) => {
+    if (ADMIN_ONLY_CATEGORIES.has(n.category)) return user?.role === 'admin'
+    return true
+  })
+  const visibleUnread = visibleNotifications.filter((n) => !n.read).length
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 shadow-[0_1px_0_rgba(15,23,42,0.03),0_12px_40px_-24px_rgba(15,23,42,0.12)] backdrop-blur-xl">
@@ -144,23 +176,110 @@ export function TopNavbar({
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-0.5 rounded-2xl border border-slate-200/80 bg-slate-50/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
 
-            {/* Notifications */}
-            <button
-              type="button"
-              className="relative inline-flex size-10 items-center justify-center rounded-xl text-slate-600 transition hover:bg-white hover:text-[#0B2735] hover:shadow-sm"
-              aria-label="Notifications, 2 unread"
-            >
-              <BellIcon className="size-[1.25rem]" />
-              <span className="absolute -right-0.5 -top-0.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-2 ring-white">
-                2
-              </span>
-            </button>
+            {/* ── Bell / Notifications ── */}
+            <div className="relative" ref={bellRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setBellOpen((o) => !o)
+                  setSettingsOpen(false)
+                }}
+                className={`relative inline-flex size-10 items-center justify-center rounded-xl transition hover:bg-white hover:text-[#0B2735] hover:shadow-sm ${
+                  bellOpen ? 'bg-white text-[#0B2735] shadow-sm' : 'text-slate-600'
+                }`}
+                aria-label={`Notifications${visibleUnread > 0 ? `, ${visibleUnread} unread` : ''}`}
+                aria-expanded={bellOpen}
+              >
+                <BellIcon className="size-[1.25rem]" />
+                {visibleUnread > 0 ? (
+                  <span className="absolute -right-0.5 -top-0.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-2 ring-white">
+                    {visibleUnread > 9 ? '9+' : visibleUnread}
+                  </span>
+                ) : null}
+              </button>
 
-            {/* Settings — with dropdown */}
+              {bellOpen ? (
+                <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_60px_-12px_rgba(15,23,42,0.2)] ring-1 ring-slate-100/80">
+                  {/* Header */}
+                  <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Notifications</p>
+                    <div className="flex items-center gap-2">
+                      {visibleUnread > 0 ? (
+                        <button
+                          type="button"
+                          onClick={markAllRead}
+                          className="text-[11px] font-medium text-[#0B2735] hover:underline"
+                        >
+                          Mark all read
+                        </button>
+                      ) : null}
+                      {visibleNotifications.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={clearAll}
+                          className="text-[11px] font-medium text-slate-400 hover:text-rose-600"
+                        >
+                          Clear all
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {/* List */}
+                  <ul className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
+                    {visibleNotifications.length === 0 ? (
+                      <li className="px-4 py-10 text-center text-sm text-slate-400">
+                        No notifications yet
+                      </li>
+                    ) : (
+                      visibleNotifications.map((n) => (
+                        <li
+                          key={n.id}
+                          className={`group flex items-start gap-3 px-4 py-3 transition hover:bg-slate-50 ${!n.read ? 'bg-blue-50/40' : ''}`}
+                        >
+                          {/* Type icon */}
+                          <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+                            <NotifIcon type={n.type} />
+                          </span>
+
+                          {/* Content */}
+                          <button
+                            type="button"
+                            className="min-w-0 flex-1 text-left"
+                            onClick={() => markRead(n.id)}
+                          >
+                            <p className={`text-sm leading-snug ${!n.read ? 'font-semibold text-slate-800' : 'font-medium text-slate-700'}`}>
+                              {n.title}
+                            </p>
+                            <p className="mt-0.5 text-xs text-slate-500 leading-relaxed">{n.message}</p>
+                            <p className="mt-1 text-[11px] text-slate-400">{timeAgo(n.createdAt)}</p>
+                          </button>
+
+                          {/* Dismiss */}
+                          <button
+                            type="button"
+                            aria-label="Dismiss"
+                            onClick={() => remove(n.id)}
+                            className="mt-0.5 shrink-0 rounded-lg p-1 text-slate-300 opacity-0 transition hover:bg-slate-200 hover:text-slate-600 group-hover:opacity-100"
+                          >
+                            <XIcon className="size-3.5" />
+                          </button>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+
+            {/* ── Settings ── */}
             <div className="relative" ref={settingsRef}>
               <button
                 type="button"
-                onClick={() => setSettingsOpen((o) => !o)}
+                onClick={() => {
+                  setSettingsOpen((o) => !o)
+                  setBellOpen(false)
+                }}
                 className={`inline-flex size-10 items-center justify-center rounded-xl transition hover:bg-white hover:shadow-sm ${
                   settingsOpen ? 'bg-white text-[#0B2735] shadow-sm' : 'text-slate-600'
                 }`}
@@ -188,9 +307,7 @@ export function TopNavbar({
                           className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
                           onClick={() => {
                             setSettingsOpen(false)
-                            if (item.path) {
-                              navigate(item.path)
-                            }
+                            if (item.path) navigate(item.path)
                           }}
                         >
                           <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
@@ -212,11 +329,8 @@ export function TopNavbar({
             </div>
           </div>
 
-          {/* Profile display — static, no hover interaction */}
-          <div
-            className="flex cursor-default items-center gap-2.5 rounded-2xl py-1 pl-1 pr-1.5 sm:pr-2.5"
-            aria-label="Logged in user"
-          >
+          {/* Profile display — static */}
+          <div className="flex cursor-default items-center gap-2.5 rounded-2xl py-1 pl-1 pr-1.5 sm:pr-2.5" aria-label="Logged in user">
             <span className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-[#0B2735] to-[#143d52] text-xs font-semibold text-white shadow-md ring-2 ring-white">
               {initials}
             </span>

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import loginBackgroundImg from '../assets/login-background.jpg'
 import logoImg from '../assets/logo.png'
 import { useAuth } from '../context/AuthContext'
+import { useNotifications } from '../context/NotificationContext'
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -99,6 +100,7 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   const { login, loginWithTokens } = useAuth()
+  const { push } = useNotifications()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   // Prevent the OAuth callback from firing more than once
@@ -126,7 +128,10 @@ export default function Login() {
       handledRef.current = true
       setSubmitting(true)
       loginWithTokens(accessToken, refreshToken)
-        .then(() => navigate('/', { replace: true }))
+        .then(() => {
+          push({ type: 'success', category: 'login_success', title: 'Login successful', message: 'Signed in with Google.' })
+          navigate('/', { replace: true })
+        })
         .catch(() => {
           setErrorMsg('Google login failed. Please try again.')
           setSubmitting(false)
@@ -145,9 +150,12 @@ export default function Login() {
     setSubmitting(true)
     try {
       await login(email, password)
+      push({ type: 'success', category: 'login_success', title: 'Login successful', message: `Welcome back, ${email}` })
       navigate('/', { replace: true })
     } catch (err: any) {
-      setErrorMsg(err.message || 'Login failed. Please try again.')
+      const msg = err.message || 'Login failed. Please try again.'
+      setErrorMsg(msg)
+      push({ type: 'error', category: 'login_failed', title: 'Login failed', message: msg })
     } finally {
       setSubmitting(false)
     }

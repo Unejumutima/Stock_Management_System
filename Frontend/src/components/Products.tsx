@@ -23,6 +23,7 @@ import {
   updateProduct,
   type Product,
 } from '../services/product.service'
+import { useNotifications } from '../context/NotificationContext'
 import { AppLayout } from './layout/AppLayout'
 import { useAuth } from '../context/AuthContext'
 
@@ -45,6 +46,7 @@ const emptyForm: ProductForm = {
 export default function Products() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const { push } = useNotifications()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
@@ -120,11 +122,15 @@ export default function Products() {
   }
 
   const handleDelete = async (id: number) => {
+    const product = products.find((p) => p.id === id)
     try {
       await deleteProduct(id)
       setProducts((prev) => prev.filter((p) => p.id !== id))
+      push({ type: 'info', category: 'product_deleted', title: 'Product deleted', message: `"${product?.name ?? 'Product'}" was removed from the catalog.` })
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete product')
+      const msg = err.response?.data?.message || 'Failed to delete product'
+      push({ type: 'error', category: 'action_error', title: 'Delete failed', message: msg })
+      alert(msg)
     }
   }
 
@@ -146,13 +152,17 @@ export default function Products() {
       if (editingId !== null) {
         const updated = await updateProduct(editingId, payload)
         setProducts((prev) => prev.map((p) => (p.id === editingId ? updated : p)))
+        push({ type: 'success', category: 'product_updated', title: 'Product updated', message: `"${payload.name}" was updated successfully.` })
       } else {
         const created = await createProduct(payload)
         setProducts((prev) => [...prev, created])
+        push({ type: 'success', category: 'product_added', title: 'Product added', message: `"${payload.name}" (${payload.sku}) was added to the catalog.` })
       }
       closeModal()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to save product')
+      const msg = err.response?.data?.message || 'Failed to save product'
+      push({ type: 'error', category: 'action_error', title: 'Save failed', message: msg })
+      alert(msg)
     }
   }
 
