@@ -50,6 +50,12 @@ app.use(passport.session())
 app.get('/health', (req, res) => {
   res.json({ success: true, message: 'Zuba House API is running' })
 })
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Zuba House API is running'
+  })
+})
 
 // All REST modules under /api
 app.use('/api', apiRoutes)
