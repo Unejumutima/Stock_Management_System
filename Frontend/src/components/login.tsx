@@ -247,7 +247,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full rounded-full border border-transparent bg-gray-200 py-3.5 pl-5 pr-12 text-sm text-slate-900 placeholder:text-slate-500 shadow-inner outline-none ring-slate-900/10 transition focus:border-slate-300 focus:bg-white focus:ring-2"
+                  className="w-full rounded-full border border-transparent bg-gray-200 py-3.5 pl-5 pr-12 text-sm text-slate-900 placeholder:text-slate-500 shadow-inner outline-none ring-slate-900/10 transition focus:border-slate-300 focus:bg-white focus:ring-2 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden [&::-webkit-credentials-auto-fill-button]:hidden"
                 />
                 <button
                   type="button"

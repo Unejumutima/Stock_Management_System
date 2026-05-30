@@ -15,3 +15,10 @@ export async function getInventoryOverview(req, res) {
   const overview = await inventoryService.getInventoryOverview()
   return sendSuccess(res, { overview })
 }
+
+export async function exportInventory(req, res) {
+  const { buffer, filename } = await inventoryService.buildInventoryExcel()
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+  return res.send(Buffer.from(buffer))
+}

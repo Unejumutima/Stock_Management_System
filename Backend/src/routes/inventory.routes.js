@@ -9,6 +9,7 @@ router.use(authenticate)
 
 router.get('/overview', asyncHandler(inventoryController.getInventoryOverview))
 router.get('/low-stock', asyncHandler(inventoryController.getLowStock))
+router.get('/export', asyncHandler(inventoryController.exportInventory))
 router.get('/', asyncHandler(inventoryController.getInventory))
 
 export default router

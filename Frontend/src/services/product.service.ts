@@ -1,11 +1,11 @@
 /**
  * Product service — wraps all calls to GET/POST/PUT/DELETE /api/products
- * The axios instance in utils/api.ts automatically attaches the JWT token.
+ * Product IDs are UUID strings (PostgreSQL UUID primary key).
  */
 import api from '../utils/api'
 
 export interface Product {
-  id: number
+  id: string   // UUID
   name: string
   sku: string
   category: string
@@ -20,29 +20,26 @@ export interface CreateProductPayload {
   category: string
   purchasePrice: number
   sellingPrice: number
+  initialStock?: number   // optional: creates an opening purchase record
 }
 
-export interface UpdateProductPayload extends Partial<CreateProductPayload> {}
+export interface UpdateProductPayload extends Partial<Omit<CreateProductPayload, 'initialStock'>> {}
 
-/** Fetch all products, optionally filtered by search string or category */
 export async function fetchProducts(params?: { search?: string; category?: string }): Promise<Product[]> {
   const { data } = await api.get('/products', { params })
   return data.data.products
 }
 
-/** Create a new product */
 export async function createProduct(payload: CreateProductPayload): Promise<Product> {
   const { data } = await api.post('/products', payload)
   return data.data.product
 }
 
-/** Update an existing product by id */
-export async function updateProduct(id: number, payload: UpdateProductPayload): Promise<Product> {
+export async function updateProduct(id: string, payload: UpdateProductPayload): Promise<Product> {
   const { data } = await api.put(`/products/${id}`, payload)
   return data.data.product
 }
 
-/** Delete a product by id */
-export async function deleteProduct(id: number): Promise<void> {
+export async function deleteProduct(id: string): Promise<void> {
   await api.delete(`/products/${id}`)
 }

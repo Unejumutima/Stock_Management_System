@@ -91,7 +91,7 @@ export default function Purchases() {
     setForm(emptyForm(products))
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     const purchase = purchases.find((p) => p.id === id)
     try {
       await deletePurchase(id)
@@ -122,7 +122,7 @@ export default function Purchases() {
     const product = products.find((p) => String(p.id) === form.productId)
     try {
       const created = await createPurchase({
-        productId: Number(form.productId),
+        productId: form.productId,   // keep as UUID string
         quantity,
         pricePerUnit,
         purchaseDate: form.purchaseDate,

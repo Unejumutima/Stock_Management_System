@@ -52,3 +52,27 @@ export async function fetchLowStock(threshold?: number): Promise<InventoryItem[]
   const { data } = await api.get('/inventory/low-stock', { params: threshold ? { threshold } : undefined })
   return data.data.items
 }
+
+/**
+ * Trigger the backend inventory Excel export.
+ * Creates a blob URL and click-downloads the file.
+ */
+export async function downloadInventoryExcel(): Promise<void> {
+  const response = await api.get('/inventory/export', { responseType: 'blob' })
+
+  const disposition = response.headers['content-disposition'] as string | undefined
+  let filename = 'ZubaHouse_Inventory.xlsx'
+  if (disposition) {
+    const match = disposition.match(/filename="?([^"]+)"?/)
+    if (match?.[1]) filename = match[1]
+  }
+
+  const url = URL.createObjectURL(new Blob([response.data]))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}

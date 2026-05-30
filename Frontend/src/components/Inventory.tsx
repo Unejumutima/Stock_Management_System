@@ -9,6 +9,7 @@ import {
 } from '../constants/inventory'
 import { btnPrimaryClass, inputClass, panelClass, selectClass } from '../constants/theme'
 import {
+  downloadInventoryExcel,
   fetchInventory,
   fetchInventoryOverview,
   fetchLowStock,
@@ -30,6 +31,7 @@ export default function Inventory() {
   const [lowStockItems, setLowStockItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [apiError, setApiError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All categories')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -44,6 +46,17 @@ export default function Inventory() {
       .catch((err) => setApiError(err.response?.data?.message || 'Failed to load inventory'))
       .finally(() => setLoading(false))
   }, [])
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await downloadInventoryExcel()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Export failed. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const filtered = useMemo(() => {
     return items.filter((row) => {
@@ -72,9 +85,9 @@ export default function Inventory() {
             Track on-hand units, purchase and sales movements, and stock health in real time.
           </p>
         </div>
-        <button type="button" className={btnPrimaryClass}>
+        <button type="button" className={btnPrimaryClass} onClick={handleExport} disabled={exporting}>
           <DownloadIcon className="size-4" />
-          Export Inventory
+          {exporting ? 'Exporting…' : 'Export Inventory'}
         </button>
       </section>
 

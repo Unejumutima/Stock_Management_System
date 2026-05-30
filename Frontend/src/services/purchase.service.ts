@@ -1,20 +1,19 @@
 /**
  * Purchase service — wraps all calls to /api/purchases
- * Backend returns: id, productId, productName, sku, category,
- * quantity, pricePerUnit, totalCost, purchaseDate
+ * productId is a UUID string (PostgreSQL UUID primary key).
  */
 import api from '../utils/api'
 
 export interface Purchase {
-  id: number
-  productId: number
+  id: string
+  productId: string
   productName: string
   sku: string
   category: string
   quantity: number
   pricePerUnit: number
   totalCost: number
-  purchaseDate: string
+  purchaseDate: string | Date
 }
 
 export interface PurchaseSummary {
@@ -24,15 +23,14 @@ export interface PurchaseSummary {
 }
 
 export interface CreatePurchasePayload {
-  productId: number
+  productId: string   // UUID
   quantity: number
   pricePerUnit: number
   purchaseDate: string
 }
 
-/** Fetch all purchases, optionally filtered */
 export async function fetchPurchases(params?: {
-  productId?: number
+  productId?: string
   category?: string
   from?: string
   to?: string
@@ -42,19 +40,16 @@ export async function fetchPurchases(params?: {
   return data.data.purchases
 }
 
-/** Fetch purchase summary (totals) */
 export async function fetchPurchaseSummary(params?: { from?: string; to?: string }): Promise<PurchaseSummary> {
   const { data } = await api.get('/purchases/summary', { params })
   return data.data.summary
 }
 
-/** Create a new purchase */
 export async function createPurchase(payload: CreatePurchasePayload): Promise<Purchase> {
   const { data } = await api.post('/purchases', payload)
   return data.data.purchase
 }
 
-/** Delete a purchase by id */
-export async function deletePurchase(id: number): Promise<void> {
+export async function deletePurchase(id: string): Promise<void> {
   await api.delete(`/purchases/${id}`)
 }

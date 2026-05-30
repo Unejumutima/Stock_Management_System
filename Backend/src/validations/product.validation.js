@@ -8,6 +8,7 @@ export const createProductValidation = [
   body('category').trim().notEmpty().withMessage('Category is required'),
   body('purchasePrice').isFloat({ min: 0 }).withMessage('Purchase price must be >= 0'),
   body('sellingPrice').isFloat({ min: 0 }).withMessage('Selling price must be >= 0'),
+  body('initialStock').optional().isInt({ min: 0 }).withMessage('Initial stock must be a non-negative integer'),
 ]
 
 export const updateProductValidation = [

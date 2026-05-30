@@ -33,6 +33,7 @@ type ProductForm = {
   category: string
   purchasePrice: string
   sellingPrice: string
+  initialStock: string
 }
 
 const emptyForm: ProductForm = {
@@ -41,6 +42,7 @@ const emptyForm: ProductForm = {
   category: PRODUCT_CATEGORIES[1] ?? 'Commodities',
   purchasePrice: '',
   sellingPrice: '',
+  initialStock: '',
 }
 
 export default function Products() {
@@ -54,7 +56,7 @@ export default function Products() {
   const [category, setCategory] = useState('All categories')
   const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]['value']>('name-asc')
   const [modalOpen, setModalOpen] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
 
   // Load products from API on mount
@@ -111,6 +113,7 @@ export default function Products() {
       category: product.category,
       purchasePrice: String(product.purchasePrice),
       sellingPrice: String(product.sellingPrice),
+      initialStock: '',   // not editable — stock is managed via purchases
     })
     setModalOpen(true)
   }
@@ -121,7 +124,7 @@ export default function Products() {
     setForm(emptyForm)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     const product = products.find((p) => p.id === id)
     try {
       await deleteProduct(id)
@@ -146,6 +149,9 @@ export default function Products() {
       category: form.category,
       purchasePrice,
       sellingPrice,
+      ...(editingId === null && form.initialStock.trim() !== ''
+        ? { initialStock: Number.parseInt(form.initialStock, 10) }
+        : {}),
     }
 
     try {
@@ -318,7 +324,7 @@ export default function Products() {
         <AddProductModal
           form={form}
           setForm={setForm}
-          editing={editingId !== null}
+      editing={editingId !== null}
           onClose={closeModal}
           onSubmit={handleSubmit}
         />
@@ -549,6 +555,23 @@ function AddProductModal({
               </div>
             </FormField>
           </div>
+
+          {!editing ? (
+            <FormField label="Initial Stock (optional)">
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={form.initialStock}
+                onChange={(e) => setForm((f) => ({ ...f, initialStock: e.target.value }))}
+                placeholder="e.g. 100 — leave blank for 0"
+                className={`${fieldClass} tabular-nums`}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Sets the opening stock by creating a purchase record at the purchase price.
+              </p>
+            </FormField>
+          ) : null}
 
           <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
             <button type="button" className={btnSecondaryClass} onClick={onClose}>
