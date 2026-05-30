@@ -41,7 +41,7 @@ export default function Dashboard() {
   const { kpis, monthlyOverview, topProducts } = data
 
   // Compute max revenue across months for chart scaling
-  const maxRevenue = Math.max(...monthlyOverview.map((m) => m.revenue), 1)
+  // const maxRevenue = Math.max(...monthlyOverview.map((m) => m.revenue), 1)
   const maxBar = Math.max(...monthlyOverview.flatMap((m) => [m.revenue, m.expenses]), 1)
 
   return (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { ChevronDownIcon, DownloadIcon, XIcon } from '../constants/icons'
 import { formatCurrency } from '../constants/products'
 import { REPORT_MONTHS, REPORT_YEARS } from '../constants/reports'

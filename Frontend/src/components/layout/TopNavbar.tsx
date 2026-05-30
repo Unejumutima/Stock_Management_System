@@ -101,7 +101,7 @@ export function TopNavbar({
 }: TopNavbarProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const { notifications, unreadCount, markRead, markAllRead, remove, clearAll } = useNotifications()
+  const { notifications, markRead, markAllRead, remove, clearAll } = useNotifications()
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [bellOpen, setBellOpen] = useState(false)

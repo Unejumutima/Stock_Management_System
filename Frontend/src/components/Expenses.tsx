@@ -93,8 +93,8 @@ export default function Expenses() {
         return matchesQuery && matchesCategory && matchesDate
       })
       .sort((a, b) => {
-        const da = a.expenseDate instanceof Date ? a.expenseDate.getTime() : new Date(a.expenseDate).getTime()
-        const db = b.expenseDate instanceof Date ? b.expenseDate.getTime() : new Date(b.expenseDate).getTime()
+        const da = new Date(a.expenseDate).getTime()
+        const db = new Date(b.expenseDate).getTime()
         return db - da
       })
   }, [expenses, query, categoryFilter, dateRange])
