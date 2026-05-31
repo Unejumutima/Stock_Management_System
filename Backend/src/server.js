@@ -9,6 +9,9 @@ import { testConnection } from './config/db.js'
 import apiRoutes from './routes/index.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
 
+import pgSession from 'connect-pg-simple'
+const PostgresSession = pgSession(session)
+
 const app = express()
 
 // Security & logging
@@ -43,6 +46,9 @@ app.use(express.urlencoded({ extended: true }))
 
 // Session configuration for Passport (Google OAuth)
 app.use(session({
+  store: new PostgresSession({
+    conString: env.databaseUrl,
+  }),
   secret: env.jwt.secret,
   resave: false,
   saveUninitialized: false,
