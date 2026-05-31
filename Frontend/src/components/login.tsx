@@ -141,7 +141,8 @@ export default function Login() {
   }, [searchParams])
 
   const handleGoogleLogin = () => {
-    // Use the backend API URL from environment — works both locally and in production
+    // VITE_API_URL already includes /api (e.g. https://backend.onrender.com/api)
+    // so we just append /auth/google — no double /api
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
     window.location.href = `${apiUrl}/auth/google`
   }
