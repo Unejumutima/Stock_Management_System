@@ -141,7 +141,9 @@ export default function Login() {
   }, [searchParams])
 
   const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:5000/api/auth/google'
+    // Use the backend API URL from environment — works both locally and in production
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+    window.location.href = `${apiUrl}/auth/google`
   }
 
   async function handleSubmit(e: FormEvent) {

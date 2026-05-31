@@ -8,11 +8,6 @@ import { env } from './config/env.js'
 import { testConnection } from './config/db.js'
 import apiRoutes from './routes/index.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
-import dotenv from 'dotenv';
-dotenv.config();
-
-console.log("ENV DB_NAME =", process.env.DB_NAME);
-console.log("ENV FILE CHECK DONE");
 
 const app = express()
 
@@ -20,10 +15,25 @@ const app = express()
 app.use(helmet())
 app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'))
 
-// CORS — allow React frontend (Axios)
+/**
+ * CORS — allow both the deployed frontend URL and localhost for development.
+ * CLIENT_URL is the primary origin (set to the deployed frontend in production).
+ * We also always allow localhost:5173 so local dev keeps working.
+ */
+const allowedOrigins = new Set([
+  env.clientUrl,
+  'http://localhost:5173',
+  'http://localhost:4173', // vite preview
+])
+
 app.use(
   cors({
-    origin: env.clientUrl,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (curl, Postman, server-to-server)
+      if (!origin) return callback(null, true)
+      if (allowedOrigins.has(origin)) return callback(null, true)
+      callback(new Error(`CORS: origin ${origin} not allowed`))
+    },
     credentials: true,
   }),
 )
@@ -31,15 +41,16 @@ app.use(
 app.use(express.json({ limit: '1mb' }))
 app.use(express.urlencoded({ extended: true }))
 
-// Session configuration for Passport
+// Session configuration for Passport (Google OAuth)
 app.use(session({
   secret: env.jwt.secret,
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: env.nodeEnv === 'production',
+    sameSite: env.nodeEnv === 'production' ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-  }
+  },
 }))
 
 // Initialize Passport
@@ -47,14 +58,12 @@ app.use(passport.initialize())
 app.use(passport.session())
 
 // Health check (no auth — for deployment probes)
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ success: true, message: 'Zuba House API is running' })
 })
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Zuba House API is running'
-  })
+
+app.get('/', (_req, res) => {
+  res.json({ success: true, message: 'Zuba House API is running' })
 })
 
 // All REST modules under /api
@@ -67,9 +76,8 @@ async function start() {
   try {
     await testConnection()
     app.listen(env.port, () => {
-      console.log(`[server] Zuba House API listening on http://localhost:${env.port}`)
+      console.log(`[server] Zuba House API listening on port ${env.port}`)
       console.log(`[server] Environment: ${env.nodeEnv}`)
-      console.log(`[server] API base: http://localhost:${env.port}/api`)
     })
   } catch (err) {
     console.error('[server] Failed to start:', err.message)
