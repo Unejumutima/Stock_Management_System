@@ -8,7 +8,7 @@ A full-stack Stock Management System developed for Zuba House to streamline inve
 
 **Frontend URL:** [https://project-onlvk.vercel.app]
 
-**Backend API URL:** [https://stock-management-system-73kh.onrender.com/api/auth/google/callback]
+**Backend API URL:** [https://stock-management-system-73kh.onrender.com]
 
 ---
 
