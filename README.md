@@ -105,24 +105,6 @@ Administrators have complete control over the system including inventory managem
 
 Users can access stock management information and operational reports according to their assigned permissions but cannot modify administrative settings or manage other users.
 
----
-
-## Login Credentials
-
-### Administrator Account
-
-Email: **[honorine@zubahouse.com]**
-
-Password: **[Password123!]**
-
-### Authorized User Account
-
-The following email has been granted User privileges and can access the system through Google Authentication:
-
-**[olivier.niyo250@gmail.com](mailto:olivier.niyo250@gmail.com)**
-
----
-
 ## Technology Stack
 
 ### Frontend
