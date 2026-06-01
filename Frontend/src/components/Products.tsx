@@ -167,8 +167,10 @@ export default function Products() {
       closeModal()
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Failed to save product'
-      push({ type: 'error', category: 'action_error', title: 'Save failed', message: msg })
-      alert(msg)
+      const detail = err.response?.data?.details
+      const fullMsg = detail ? `${msg}\n\n${detail}` : msg
+      push({ type: 'error', category: 'action_error', title: msg, message: detail ?? msg })
+      alert(fullMsg)
     }
   }
 

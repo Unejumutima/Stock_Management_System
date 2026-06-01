@@ -10,8 +10,14 @@ export function errorHandler(err, req, res, next) {
   // PostgreSQL unique violation
   if (err.code === '23505') {
     statusCode = 409
-    message = 'Duplicate value violates unique constraint'
-    if (err.detail) details = err.detail
+    // Detect product SKU duplicates specifically
+    if (err.detail && err.detail.toLowerCase().includes('sku')) {
+      message = 'Duplicate Product Detected'
+      details = 'This product is already in your inventory. Update the existing product instead of creating a new one.'
+    } else {
+      message = 'Duplicate value violates unique constraint'
+      if (err.detail) details = err.detail
+    }
   }
 
   // Foreign key violation
